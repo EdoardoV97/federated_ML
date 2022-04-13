@@ -1,12 +1,14 @@
-from brownie import accounts, config, IPFS, network
+from brownie import accounts, config, FederatedML, network
 
 
-def deploy_ipfs():
+def deploy_ML():
     account = get_account()
     # Deploy
-    ipfs = IPFS.deploy({"from": account})
+    federatedML_contract = FederatedML.deploy(10, {"from": account})
 
     # Read the stored value
+    # print(federatedML_contract.model(0))
+
 
 
     # Store a new value
@@ -23,4 +25,4 @@ def get_account():
 
 
 def main():
-    deploy_ipfs()
+    deploy_ML()
