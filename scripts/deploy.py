@@ -18,4 +18,4 @@ def deploy_FederatedML(number_of_weigths=10):
 
 
 def main():
-    deploy_FederatedML()
+    deploy_FederatedML(2)

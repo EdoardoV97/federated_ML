@@ -17,9 +17,6 @@ def gradient_descent(gradient, W, X, y, learn_rate, n_iter):
 
 
 def applyLocalTraining(weights):
-    print("Coefficients [PULLED ONE] : {}".format(weights))
-    # print('Features : {}'.format(X))
-
     # NEW LOCAL TRAINING
     # Retrieve the dataset
     file = "https://archive.ics.uci.edu/ml/machine-learning-databases/iris/iris.data"
@@ -39,5 +36,5 @@ def applyLocalTraining(weights):
 
     newModel = gradient_descent(gradientLS, weights, X, y, 1, 1)
 
-    print("Coefficients [LOCAL UPDATE] : {}".format(newModel))
+    print("Model[LOCAL UPDATE]: {}".format(newModel))
     return newModel, CONSIDERED_DATA_PONTS
