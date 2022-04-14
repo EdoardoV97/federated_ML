@@ -2,10 +2,12 @@ from brownie import accounts, config, FederatedML, network
 from scripts.helpful_scripts import get_account
 
 
-def deploy_ML():
+def deploy_FederatedML(number_of_weigths=10):
     account = get_account()
     # Deploy
-    federatedML_contract = FederatedML.deploy(10, {"from": account})
+    federatedML_contract = FederatedML.deploy(number_of_weigths, {"from": account})
+    print(f"Contract deployed to: {federatedML_contract.address}")
+    return federatedML_contract
 
     # Read the stored value
     # print(federatedML_contract.model(0))
@@ -16,4 +18,4 @@ def deploy_ML():
 
 
 def main():
-    deploy_ML()
+    deploy_FederatedML()
