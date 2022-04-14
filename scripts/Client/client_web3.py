@@ -1,21 +1,27 @@
 from web3 import Web3
 from decimal import Decimal
+import json
 
 # For connecting to ganache
-w3 = Web3(Web3.HTTPProvider("http://0.0.0.0:8545"))
+w3 = Web3(Web3.HTTPProvider("http://127.0.0.1:8545"))
 chain_id = 1337
-my_address = "0x938a83Eb94AA291CC028a4af8cDe421Aff3fBF65"
-private_key = "0xc58b986f5a4acab4acb21d4516fdba6e1e73ed9c9bf051d83617ca0522f16c53"
+my_address = "0xd2015d33DC60D27A902b1F4Fb2Ea5aFD1a5293BE"
+private_key = "0x4af55be9c3cf3f310cafd81c12d1ed0b510ada4da54d05a3e914bc1bc40e6afc"
 
-contract_address = "0x8c672404b6E81AE1404Bd0Aa16458EC64006FF83"
+def get_contract_address():
+    with open('build/deployments/map.json', 'r') as file:
+        json_file = json.load(file)
+        return json_file[str(5777)]['FederatedML'][0]
 
-
-def get_ABI():
-    pass
+def get_ABI(contract_address):
+    with open('build/deployments/5777/'  + contract_address + '.json', 'r') as file:
+        json_file = json.load(file)
+        return json_file['abi']
 
 
 def pullModel():
-    federated_ML = w3.eth.contract(contract_address, abi=get_ABI())
+    contract_address = get_contract_address()
+    federated_ML = w3.eth.contract(contract_address, abi=get_ABI(contract_address))
     (
         pulled_model,
         data_points_pulled_model,
@@ -29,9 +35,11 @@ def pullModel():
 
 
 def pushModel(new_model, old_data_points, new_local_data_points):
+    contract_address = get_contract_address()
+
     integer_rep_new_model = [Web3.toWei(x, "gwei") for x in new_model]
 
-    federated_ML = w3.eth.contract(contract_address, abi=get_ABI())
+    federated_ML = w3.eth.contract(contract_address, abi=get_ABI(contract_address))
     transaction = federated_ML.functions.updateModel(
         integer_rep_new_model, old_data_points, new_local_data_points
     ).buildTransaction(
