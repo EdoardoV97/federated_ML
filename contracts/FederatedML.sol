@@ -4,14 +4,14 @@ pragma solidity ^0.8.13;
 
 contract FederatedML {
     int256[] public model; // w_i
-    int256 internal totalDataPoints; // n_i
+    int256 public totalDataPoints; // n_i
 
     constructor(uint256 _weightNumber) {
         model = new int256[](_weightNumber);
     }
 
-    function retrieveModel() public view returns (int256[] memory) {
-        return model;
+    function retrieveModel() public view returns (int256[] memory, int256) {
+        return (model, totalDataPoints);
     }
 
     // _newLocalModel = w_i*

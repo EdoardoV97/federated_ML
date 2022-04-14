@@ -1,4 +1,5 @@
 from brownie import accounts, config, FederatedML, network
+from scripts.helpful_scripts import get_account
 
 
 def deploy_ML():
@@ -9,19 +10,9 @@ def deploy_ML():
     # Read the stored value
     # print(federatedML_contract.model(0))
 
-
-
     # Store a new value
 
-
     # Wait 1 block to complete, then read the stored value
-
-
-def get_account():
-    if network.show_active() == "development":
-        return accounts[0]
-    else:
-        return accounts.add(config["wallets"]["from_key"])
 
 
 def main():
