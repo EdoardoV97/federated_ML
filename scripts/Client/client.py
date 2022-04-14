@@ -1,5 +1,5 @@
-from scripts.Client.client_ml import applyLocalTraining
-from scripts.Client.client_web3 import pullModel, pushModel
+from client_ml import applyLocalTraining
+from client_web3 import pullModel, pushModel
 
 # weights = [-6.034544563891951 * 10 ** -16, 0.9627571]
 
