@@ -1,13 +1,21 @@
-from re import X
 from web3 import Web3
-from decimal import Decimal
 import json
 
 # For connecting to ganache
-w3 = Web3(Web3.HTTPProvider("http://127.0.0.1:8545"))
-chain_id = 1337
-my_address = "0xd2015d33DC60D27A902b1F4Fb2Ea5aFD1a5293BE"
-private_key = "0x4af55be9c3cf3f310cafd81c12d1ed0b510ada4da54d05a3e914bc1bc40e6afc"
+# w3 = Web3(Web3.HTTPProvider("http://127.0.0.1:8545"))
+# chain_id = 1337
+# my_address = "0xd2015d33DC60D27A902b1F4Fb2Ea5aFD1a5293BE"
+# private_key = "0x4af55be9c3cf3f310cafd81c12d1ed0b510ada4da54d05a3e914bc1bc40e6afc"
+
+CHOSEN_NETWORK = "ganache-local"
+
+with open('scripts/Client/client-config.json', 'r') as file:
+    json_file = json.load(file)
+    w3 = Web3(Web3.HTTPProvider(json_file[CHOSEN_NETWORK]['provider']))
+    chain_id = int(json_file[CHOSEN_NETWORK]['chain-id'])
+    my_address = json_file[CHOSEN_NETWORK]['address']
+    private_key = json_file[CHOSEN_NETWORK]['private-key']
+
 
 def get_contract_address():
     with open('build/deployments/map.json', 'r') as file:
