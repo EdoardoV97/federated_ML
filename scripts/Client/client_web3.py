@@ -62,12 +62,6 @@ def pushModel(new_model, old_data_points, new_local_data_points):
     contract_address = get_contract_address()
 
     integer_rep_new_model = [safe_check_toWei(x) for x in new_model]
-    # integer_rep_new_model = []
-    # for i in range(len(new_model)):
-    #     if new_model[i] < 0:
-    #         integer_rep_new_model.append(-Web3.toWei(abs(new_model[i]), "gwei"))
-    #     else:
-    #         integer_rep_new_model.append(Web3.toWei(new_model[i], "gwei"))
 
     federated_ML = w3.eth.contract(contract_address, abi=get_ABI(contract_address))
     transaction = federated_ML.functions.updateModel(

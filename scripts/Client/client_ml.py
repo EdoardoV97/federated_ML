@@ -18,6 +18,7 @@ def gradient_descent(gradient, W, X, y, learn_rate, n_iter):
 
 def applyLocalTraining(weights):
     # NEW LOCAL TRAINING
+    print(f"The number of local data points used is: {CONSIDERED_DATA_PONTS}")
     # Retrieve the dataset
     file = "https://archive.ics.uci.edu/ml/machine-learning-databases/iris/iris.data"
     # file = 'iris.data'
