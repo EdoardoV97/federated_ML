@@ -3,7 +3,7 @@
 pragma solidity ^0.8.13;
 import "@openzeppelin/contracts/access/Ownable.sol";
 
-contract ReceptionistFederatedML is Ownable {
+contract FederatedML is Ownable {
     enum STATE {
         FUNDING,
         REGISTERING,
