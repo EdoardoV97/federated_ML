@@ -39,6 +39,9 @@ contract FederatedML is Ownable {
         state = STATE.FUNDING;
     }
 
+    //TODO
+    function fundLink() public {}
+
     function fund() public payable {
         require(state == STATE.FUNDING, "Is not possible to further fund!");
         addressToAmountFunded[msg.sender] += msg.value;
@@ -66,6 +69,7 @@ contract FederatedML is Ownable {
         workers.push(msg.sender);
         if (workers.length >= workersNumber) {
             state = STATE.TASK_STARTED;
+            startTask();
         }
     }
 
@@ -134,4 +138,6 @@ contract FederatedML is Ownable {
             }
         }
     }
+
+    function startTask() internal {}
 }
