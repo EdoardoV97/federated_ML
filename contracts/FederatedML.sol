@@ -19,6 +19,7 @@ contract FederatedML is Ownable {
     struct Round {
         address[] workers;
     }
+    event RoundWorkersSelection(address[] workers);
 
     STATE public state;
     string taskScript;
@@ -38,9 +39,6 @@ contract FederatedML is Ownable {
         workersNumber = _workersNumber;
         state = STATE.FUNDING;
     }
-
-    //TODO
-    function fundLink() public {}
 
     function fund() public payable {
         require(state == STATE.FUNDING, "Is not possible to further fund!");
@@ -139,5 +137,19 @@ contract FederatedML is Ownable {
         }
     }
 
-    function startTask() internal {}
+    function startTask() internal {
+        //TODO
+    }
+
+    function nextRound() internal {
+        //TODO
+    }
+
+    function lastRound() internal {
+        //TODO
+    }
+
+    function commitWork() external {
+        //TODO
+    }
 }
