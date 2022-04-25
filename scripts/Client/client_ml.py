@@ -1,41 +1,158 @@
-import pandas as pd
+from sklearn.utils import shuffle
+from matplotlib import pyplot
 import numpy as np
-from scipy.stats import zscore
+from tensorflow.keras.datasets import mnist
+from tensorflow.keras.utils import to_categorical
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.layers import Conv2D
+from tensorflow.keras.layers import MaxPooling2D
+from tensorflow.keras.layers import Dense
+from tensorflow.keras.layers import Flatten
+from tensorflow.keras.optimizers import SGD
 
-CONSIDERED_DATA_PONTS = 150
+# Constants
+TOTAL_WORKERS = 100
+ROUNDS = 10
+WORKERS_IN_ROUND = TOTAL_WORKERS // ROUNDS  # This is K'
+BEST_K = (WORKERS_IN_ROUND + 1) // 2
+
+LOCAL_EPOCHS = 5
+LOCAL_BATCH_SIZE = 64
+
+# CLASSES
+class LocalOutput:
+    def __init__(self):
+        self.model = None
+        self.bestKWorkers = []
 
 
-def gradientLS(w, X, y):
-    return -(X.T).dot(y - X.dot(w))
+class LocalDataset:
+    def __init__(self):
+        self.X = None
+        self.Y = None
 
 
-def gradient_descent(gradient, W, X, y, learn_rate, n_iter):
-    W_new = W
-    for _ in range(n_iter):
-        W_new = W_new - learn_rate * gradient(W, X, y)
-    return W_new
+class WorkerToEvaluate:
+    def __init__(self, weightsFile):
+        self.weightsFile = weightsFile
+        self.loss = None
+        self.accuracy = None
 
 
-def applyLocalTraining(weights):
-    # NEW LOCAL TRAINING
-    print(f"The number of local data points used is: {CONSIDERED_DATA_PONTS}")
-    # Retrieve the dataset
-    file = "https://archive.ics.uci.edu/ml/machine-learning-databases/iris/iris.data"
-    # file = 'iris.data'
-    names = ["sepal-length", "sepal-width", "petal-length", "petal-width", "class"]
-    dataset_complete = pd.read_csv(file, names=names)
-    dataset = dataset_complete
-    # dataset = dataset_complete.truncate(before=74)
-    dataset = dataset.drop("sepal-length", axis="columns")
-    dataset = dataset.drop("sepal-width", axis="columns")
-    dataset = dataset.drop("class", axis="columns")
+def get_loss(worker):
+    return worker.loss
 
-    X = zscore(dataset["petal-length"].values).reshape(-1, 1)
-    y = zscore(dataset["petal-width"].values)
 
-    X = np.c_[np.ones(CONSIDERED_DATA_PONTS), X]
+# GLOBAL VARIABLES
+localDataset: LocalDataset = None
+localOutput: LocalOutput = None
 
-    newModel = gradient_descent(gradientLS, weights, X, y, 1, 1)
+# load train and test dataset
+def load_dataset():
+    # load dataset
+    (trainX, trainY), (testX, testY) = mnist.load_data()
+    # reshape dataset to have a single channel
+    trainX = trainX.reshape((trainX.shape[0], 28, 28, 1))
+    testX = testX.reshape((testX.shape[0], 28, 28, 1))
+    # one hot encode target values
+    trainY = to_categorical(trainY)
+    testY = to_categorical(testY)
+    return trainX, trainY, testX, testY
 
-    print("Model[LOCAL UPDATE]: {}".format(newModel))
-    return newModel, CONSIDERED_DATA_PONTS
+
+def get_localDataset():
+    trainX, trainY, testX, testY = load_dataset()
+    localDataset.X = trainX
+    localDataset.Y = trainY
+
+
+# scale pixels
+def prep_pixels(train, test):
+    # convert from integers to floats
+    train_norm = train.astype("float32")
+    test_norm = test.astype("float32")
+    # normalize to range 0-1
+    train_norm = train_norm / 255.0
+    test_norm = test_norm / 255.0
+    # return normalized images
+    return train_norm, test_norm
+
+
+# define cnn model
+def define_model():
+    model = Sequential()
+    model.add(
+        Conv2D(
+            32,
+            (3, 3),
+            activation="relu",
+            kernel_initializer="he_uniform",
+            input_shape=(28, 28, 1),
+        )
+    )
+    model.add(MaxPooling2D((2, 2)))
+    model.add(Conv2D(64, (3, 3), activation="relu", kernel_initializer="he_uniform"))
+    model.add(Conv2D(64, (3, 3), activation="relu", kernel_initializer="he_uniform"))
+    model.add(MaxPooling2D((2, 2)))
+    model.add(Flatten())
+    model.add(Dense(100, activation="relu", kernel_initializer="he_uniform"))
+    model.add(Dense(10, activation="softmax"))
+    # compile model
+    opt = SGD(learning_rate=0.01, momentum=0.9)
+    model.compile(optimizer=opt, loss="categorical_crossentropy", metrics=["accuracy"])
+    return model
+
+
+def local_update(workersToEvaluate: list[WorkerToEvaluate]):
+    # 1) EVALUATE PULLED MODELS AND SELECT BEST K' WORKERS
+    # k = 1
+    for w in workersToEvaluate:
+        model = define_model()
+        model.load_weights(w.weightsFile)
+        loss, acc = model.evaluate(localDataset.X, localDataset.Y, verbose=0)
+        # print("Local evaluation accuracy on worker %i > %.3f" % (k, acc * 100.0))
+        w.loss = loss
+        w.accuracy = acc
+        # k = k + 1
+
+    workersToEvaluate.sort(key=get_loss)
+    localOutput.bestKWorkers = workersToEvaluate[
+        : min(max(BEST_K, 1), len(workersToEvaluate))
+    ]  # 1st OUTPUT
+
+    # 2) AVERAGE BEST K' models
+    weights = [w.localOutput.model.get_weights() for w in localOutput.bestKWorkers]
+    new_weights = list()
+    for weights_list_tuple in zip(*weights):
+        new_weights.append(
+            np.array([np.array(w).mean(axis=0) for w in zip(*weights_list_tuple)])
+        )
+
+    # Set the average as starting new model
+    new_model = define_model()
+    new_model.set_weights(new_weights)
+
+    # 3) LOCAL TRAINING
+    new_model.fit(
+        localDataset.X,
+        localDataset.Y,
+        epochs=LOCAL_EPOCHS,
+        batch_size=64,
+        verbose=0,
+    )
+    # trainX, trainY, testX, testY = load_dataset()
+    # _, acc = model.evaluate(testX, testY, verbose=0)
+    # print("Accuracy after local training > %.3f" % (acc * 100.0))
+    localOutput.model = new_model  # 2nd OUTPUT
+    return acc * 100.0
+
+
+def run(workersToEvaluate: list[WorkerToEvaluate]):
+    # Initialize the local dataset
+    get_localDataset()
+
+    # Do local training
+    local_update(workersToEvaluate)
+
+    # Return the output
+    return localOutput

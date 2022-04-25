@@ -1,13 +1,23 @@
-from client_ml import applyLocalTraining
-from client_web3 import pullModel, pushModel
+from client_ml import WorkerToEvaluate, LocalOutput, run
+from client_web3 import getModels, sendResponse
 
-# weights = [-6.034544563891951 * 10 ** -16, 0.9627571]
+workersToEvaluate: list(WorkerToEvaluate) = None
+localOutput: list(LocalOutput) = None
 
 
 def main():
-    pulled_model, pulled_model_data_points = pullModel()
-    newModel, new_local_data_points = applyLocalTraining(weights=pulled_model)
-    pushModel(newModel, pulled_model_data_points, new_local_data_points)
+    # Get the models to evaluate
+    models_path = getModels()
+    for p in models_path:
+        w = WorkerToEvaluate(p)
+        workersToEvaluate.append(w)
 
-if __name__=="__main__":
+    # Do local training
+    localOutput = run(workersToEvaluate)
+
+    # Send back the response
+    sendResponse(localOutput)
+
+
+if __name__ == "__main__":
     main()
