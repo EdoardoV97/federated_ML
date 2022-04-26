@@ -90,8 +90,9 @@ def summarize_diagnostics(history):
     pyplot.close()
 
 
-def save_model_to_IPFS():
+def save_to_IPFS():
     filepath = "MNIST-model.h5"
+    # model.save_weights(filepath, overwrite=True)
 
     response = requests.post(
         "http://127.0.0.1:5001/api/v0/add", files={filepath: open(filepath, "rb")}
@@ -101,7 +102,11 @@ def save_model_to_IPFS():
     print(hash)
 
 
-# model.save_weights(filepath, overwrite=True)
+def get_from_IPFS():
+    params = (("arg", "QmYr27Zwr7MYDAv4dExNtXrpe56hcG5D6oEJEAoUsVYagk"),)
+    response = requests.post("http://127.0.0.1:5001/api/v0/get", params=params)
+    print(response)
+    pass
 
 
 # run the test harness for evaluating a model
@@ -120,7 +125,8 @@ def run_test_harness():
     # _, acc = model.evaluate(testX, testY, verbose=0)
     # print("> %.3f" % (acc * 100.0))
 
-    save_model_to_IPFS()
+    # save_to_IPFS()
+    get_from_IPFS()
 
     # learning curves
     # summarize_diagnostics(history)
