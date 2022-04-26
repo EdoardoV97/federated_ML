@@ -6,3 +6,7 @@ __pycache__
 build/
 reports/
 client-config.json
+
+# File types
+*.h5
+*.png
