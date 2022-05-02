@@ -14,7 +14,8 @@ contract FederatedML is Ownable {
         uint256 fee;
         uint256 reward;
         uint16 votesReceived;
-        address voteGranted;
+        address[] votesGranted;
+        string secretVote;
     }
     struct Round {
         address[] workers;
@@ -24,6 +25,8 @@ contract FederatedML is Ownable {
     STATE public state;
     string taskScript;
     uint16 workersNumber;
+    uint16 roundsNumber;
+    uint16 workersInRound;
     uint256 entranceFee;
     uint256 bounty;
     address coordinatorSC;
@@ -34,9 +37,18 @@ contract FederatedML is Ownable {
     mapping(address => WorkerInfo) public addressToWorkerInfo;
     address[] public workers;
 
-    constructor(string memory _taskScript, uint16 _workersNumber) {
+    constructor(
+        string memory _taskScript,
+        uint16 _workersNumber,
+        uint16 _roundsNumber
+    ) {
+        require(
+            _workersNumber % _roundsNumber == 0,
+            "The number of workers must be a multiple of the number of rounds!"
+        );
         taskScript = _taskScript;
         workersNumber = _workersNumber;
+        roundsNumber = _roundsNumber;
         state = STATE.FUNDING;
     }
 
@@ -67,7 +79,7 @@ contract FederatedML is Ownable {
         workers.push(msg.sender);
         if (workers.length >= workersNumber) {
             state = STATE.TASK_STARTED;
-            startTask();
+            startRound();
         }
     }
 
@@ -137,19 +149,44 @@ contract FederatedML is Ownable {
         }
     }
 
-    function startTask() internal {
+    function startRound() internal {
         //TODO
+        // Request random numbers to the oracle to choose the workers for the round
     }
 
     function nextRound() internal {
         //TODO
+        // Given the random numbers use it as indexes to get the workers (take next if already choose)
+        // Emit an event with the choosen workers for the round
     }
 
-    function lastRound() internal {
+    function getPreviousModels() public view returns (string[]) {
         //TODO
+        // Returns the models of the previous round (the initilization in case of the first round)
     }
 
-    function commitWork() external {
+    function commitWork(uint16[] _votes, string memory _updatedModel) external {
         //TODO
+        // Check if the workers is one of the round and it has not already committed
+        // Save the vote (the parameter is the index of the voted models)
+        // Save the updated model
+        // If it is the last commit of the round start the next
+        // If it is the second to last, start the last round
+    }
+
+    function commitSecretVote(string _secretVote) external {
+        //TODO
+        // Check if it is the last round
+        // Check if the workers is one of the round and it has not already committed
+        // Save the secret vote
+        // If it was the last secret vote begin the disclosure phase
+    }
+
+    function discloseSecretVote(uint16[] _votes, string memory salt) external {
+        //TODO
+        // Check disclosure phase
+        // Check if the workers is one of the last round and it has committed a secret vote
+        // Check the validity of the vote
+        // If it is the last disclosure, end the task
     }
 }
