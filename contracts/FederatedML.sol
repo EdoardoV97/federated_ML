@@ -15,7 +15,8 @@ contract FederatedML is Ownable, VRFConsumerBase, ChainlinkClient {
         REGISTERING,
         TASK_ENDED,
         TASK_ABORTED,
-        ROUND_PREPARATION
+        ROUND_PREPARATION,
+        ROUND_IN_PROGRESS
     }
     struct WorkerInfo {
         uint256 fee;
@@ -23,9 +24,11 @@ contract FederatedML is Ownable, VRFConsumerBase, ChainlinkClient {
         uint16 votesReceived;
         address[] votesGranted;
         string secretVote;
+        bool alreadySelected;
+        string modelHash;
     }
     struct Round {
-        address[] workers;
+        EnumerableSet.AddressSet workers;
     }
 
     STATE public state;
@@ -33,8 +36,11 @@ contract FederatedML is Ownable, VRFConsumerBase, ChainlinkClient {
     uint16 workersNumber;
     uint16 roundsNumber;
     uint16 workersInRound;
+    uint16 topWorkersInRound;
     uint256 entranceFee;
     uint256 bounty;
+    string initialModelHash;
+    uint16 voteMinutes;
     address coordinatorSC;
     // To keep track of the rounds
     Round[] rounds;
@@ -44,6 +50,7 @@ contract FederatedML is Ownable, VRFConsumerBase, ChainlinkClient {
     // Variables for the api_oracle
     address private oracleApiAddress;
     bytes32 private jobId;
+    bytes32 lastTimerRequestId;
 
     mapping(address => uint256) public addressToAmountFunded;
     EnumerableSet.AddressSet public funders;
@@ -60,6 +67,8 @@ contract FederatedML is Ownable, VRFConsumerBase, ChainlinkClient {
         string memory _taskScript,
         uint16 _workersNumber,
         uint16 _roundsNumber,
+        uint16 _voteMinutes,
+        string _initialModelHash,
         address _vrfCoordinator,
         address _link,
         uint256 _fee,
@@ -79,6 +88,8 @@ contract FederatedML is Ownable, VRFConsumerBase, ChainlinkClient {
         keyhash = _keyhash;
         oracleApiAddress = _oracleApiAddress;
         jobId = _jobId;
+        voteMinutes = _voteMinutes;
+        initialModelHash = _initialModelHash;
     }
 
     function fund() public payable {
@@ -156,18 +167,6 @@ contract FederatedML is Ownable, VRFConsumerBase, ChainlinkClient {
         remove(workers, msg.sender);
     }
 
-    function removeFunder(address addr) internal {
-        for (uint16 i = 0; i < funders.length; i++) {
-            if (funders[i] == addr) {
-                if (funders.length > 1) {
-                    funders[i] = funders[funders.length - 1];
-                }
-                funders.length--;
-                return;
-            }
-        }
-    }
-
     function initializeRound() internal {
         // Request random numbers to the oracle to choose the workers for the round
         state = STATE.ROUND_PREPARATION;
@@ -176,15 +175,83 @@ contract FederatedML is Ownable, VRFConsumerBase, ChainlinkClient {
     }
 
     function startRound(uint256 _randomness) internal {
-        //TODO
-        // Given the random numbers use it as indexes to get the workers (take next if already choose)
+        EnumerableSet.AddressSet selectedWorkers;
+        address[] selectedWorkersArray;
+        uint256 index = _randomness % length(workers);
+        uint16 counter = 0;
+        // Given the random numbers use it as indexes to get the workers sequentially
+        while (counter < workersInRound) {
+            address w = at(workers, index);
+            if (!addressToWorkerInfo[w].alreadySelected) {
+                addressToWorkerInfo[w].already = true;
+                add(selectedWorkers, w);
+                selectedWorkersArray.push(w);
+                counter++;
+            }
+            if (index == length(workers) - 1) {
+                index = 0;
+            } else {
+                index++;
+            }
+        }
+        rounds.push(Round(selectedWorkers));
         // Emit an event with the choosen workers for the round
+        emit RoundWorkersSelection(selectedWorkersArray);
+        // Set the new state
+        state = STATE.ROUND_IN_PROGRESS;
         // Start the timer for the round duration
+        startTimer();
+    }
+
+    function startTimer() internal {
+        Chainlink.Request memory req = buildChainlinkRequest(
+            jobId,
+            address(this),
+            this.timerEnded.selector
+        );
+        req.addUint("until", now + voteMinutes * 1 minutes);
+        lastTimerRequestId = sendChainlinkRequestTo(oracleApiAddress, req, fee);
+    }
+
+    function timerEnded(bytes32 _requestId)
+        public
+        recordChainlinkFulfillment(_requestId)
+    {
+        require(lastTimerRequestId == _requestId, "Alredy passed the round!");
+        endRound();
+    }
+
+    function endRound() internal {
+        // TODO
+        // Assign rewards
+        // Start next round
     }
 
     function getPreviousModels() public view returns (string[]) {
-        //TODO
         // Returns the models of the previous round (the initilization in case of the first round)
+        require(
+            state == STATE.ROUND_IN_PROGRESS,
+            "There is not a round in progress currently!"
+        );
+        require(
+            contains(rounds[rounds.length - 1].workers, msg.sender) == true,
+            "You are not a worker of the current round!"
+        );
+        string[] previousModelHashes;
+        if (rounds.length == 0) {
+            return [initialModelHash];
+        }
+        for (
+            uint256 i = 0;
+            index < length(rounds[rounds.length - 2].workers);
+            index++
+        ) {
+            previousModelHashes.push(
+                addressToWorkerInfo[at(rounds[rounds.length - 1].workers, i)]
+                    .modelHash
+            );
+        }
+        return previousModelHashes;
     }
 
     function commitWork(uint16[] _votes, string memory _updatedModel) external {
