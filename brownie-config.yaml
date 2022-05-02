@@ -1,9 +1,13 @@
 dependencies:
   - OpenZeppelin/openzeppelin-contracts@4.2.0
+  - smartcontractkit/chainlink-brownie-contracts@1.1.1
 compiler:
   solc:
     remappings:
       - '@openzeppelin=OpenZeppelin/openzeppelin-contracts@4.2.0'
+      - '@chainlink=smartcontractkit/chainlink-brownie-contracts@1.1.1'
+
+
 dotenv: .env
 networks:
   development:
@@ -12,7 +16,25 @@ networks:
     verify: False
   kovan:
     verify: True
+    vrf_coordinator: '0xdD3782915140c8f3b190B5D67eAc6dc5760C46E9'
+    link_token: '0xa36085F69e2889c224210F603D836748e7dC0088'
+    fee: 100000000000000000
+    keyhash: '0x6c3699283bda56ad74f6b855546325b68d482e983852a7a82979cc4807b641f4'
+    api_oracle: '0xc57B33452b4F7BB189bB5AfaE9cc4aBa1f7a4FD8'
+    job_id: '7401f318127148a894c00c292e486ffd'
   rinkeby:
     verify: True
+    vrf_coordinator: '0xb3dCcb4Cf7a26f6cf6B120Cf5A73875B7BBc655B'
+    link_token: '0x01BE23585060835E02B77ef475b0Cc51aA1e0709'
+    fee: 100000000000000000
+    keyhash: '0x2ed0feb3e7fd2022120aa84fab1945545a9f2ffc9076fd6156fa96eaff4c1311'
+  polygon-test:
+    verify: True
+    vrf_coordinator: '0x8C7382F9D8f56b33781fE506E897a4F1e2d17255'
+    link_token: '0x326C977E6efc84E512bB9C30f76E30c160eD06FB'
+    fee: 100000000000000
+    keyhash: '0x6e75b569a01ef56d18cab6a8e71e6600d6ce853834d4a5748b720d06f878b3a4'
+    api_oracle: '0x58bbdbfb6fca3129b91f0dbe372098123b38b5e9'
+    job_id: 'a82495a8fd5b4cb492b17dc0cc31a4fe'
 wallets:
   from_key: ${PRIVATE_KEY}
