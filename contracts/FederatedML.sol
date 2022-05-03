@@ -44,6 +44,7 @@ contract FederatedML is Ownable, VRFConsumerBase, ChainlinkClient {
     uint256 bounty;
     string initialModelHash;
     uint16 voteMinutes;
+    uint16 registrationMinutes;
     address coordinatorSC;
     // To keep track of the rounds
     Round[] rounds;
@@ -76,6 +77,7 @@ contract FederatedML is Ownable, VRFConsumerBase, ChainlinkClient {
         uint16 _workersNumber,
         uint16 _roundsNumber,
         uint16 _voteMinutes,
+        uint16 _registrationMinutes;
         string _initialModelHash,
         address _vrfCoordinator,
         address _link,
@@ -112,7 +114,8 @@ contract FederatedML is Ownable, VRFConsumerBase, ChainlinkClient {
         entranceFee = computeFee();
         // TODO verify there are enough LINK tokens
 
-        // TODO Start a timer, after which we need to cancel the task and refund all funders, workers and the admin
+        // Start a timer, after which we need to cancel the task and refund all funders and workers
+        startTimer(registrationMinutes);
     }
 
     function computeFee() internal returns (uint256) {
@@ -210,16 +213,16 @@ contract FederatedML is Ownable, VRFConsumerBase, ChainlinkClient {
         // Set the new state
         state = STATE.ROUND_IN_PROGRESS;
         // Start the timer for the round duration
-        startTimer();
+        startTimer(voteMinutes);
     }
 
-    function startTimer() internal {
+    function startTimer(uint16 _voteMinutes) internal {
         Chainlink.Request memory req = buildChainlinkRequest(
             jobId,
             address(this),
             this.timerEnded.selector
         );
-        req.addUint("until", now + voteMinutes * 1 minutes);
+        req.addUint("until", now + _voteMinutes * 1 minutes);
         lastTimerRequestId = sendChainlinkRequestTo(oracleApiAddress, req, fee);
     }
 
@@ -227,8 +230,14 @@ contract FederatedML is Ownable, VRFConsumerBase, ChainlinkClient {
         public
         recordChainlinkFulfillment(_requestId)
     {
-        require(lastTimerRequestId == _requestId, "Alredy passed the round!");
-        endRound();
+        require(lastTimerRequestId == _requestId, "Alredy passed the phase!");
+        if(state == STATE.ROUND_PREPARATION){
+            endRound();
+        }
+        if(state == STATE.REGISTERING){
+            state = STATE.TASK_ABORTED;
+        }
+        return;
     }
 
     function endRound() internal {
@@ -272,7 +281,7 @@ contract FederatedML is Ownable, VRFConsumerBase, ChainlinkClient {
         // Set the new state
         state = STATE.LAST_ROUND_IN_PROGRESS;
         // Start the timer for the round duration
-        startTimer();
+        startTimer(voteMinutes);
     }
 
     // function quick(<<type>> memory data) internal pure {
