@@ -77,7 +77,7 @@ contract FederatedML is Ownable, VRFConsumerBase, ChainlinkClient {
         uint16 _workersNumber,
         uint16 _roundsNumber,
         uint16 _voteMinutes,
-        uint16 _registrationMinutes;
+        uint16 _registrationMinutes,
         string _initialModelHash,
         address _vrfCoordinator,
         address _link,
@@ -99,6 +99,7 @@ contract FederatedML is Ownable, VRFConsumerBase, ChainlinkClient {
         oracleApiAddress = _oracleApiAddress;
         jobId = _jobId;
         voteMinutes = _voteMinutes;
+        registrationMinutes = _registrationMinutes;
         initialModelHash = _initialModelHash;
     }
 
@@ -231,10 +232,10 @@ contract FederatedML is Ownable, VRFConsumerBase, ChainlinkClient {
         recordChainlinkFulfillment(_requestId)
     {
         require(lastTimerRequestId == _requestId, "Alredy passed the phase!");
-        if(state == STATE.ROUND_PREPARATION){
+        if (state == STATE.ROUND_PREPARATION) {
             endRound();
         }
-        if(state == STATE.REGISTERING){
+        if (state == STATE.REGISTERING) {
             state = STATE.TASK_ABORTED;
         }
         return;
