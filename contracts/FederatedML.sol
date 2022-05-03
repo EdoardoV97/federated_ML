@@ -344,7 +344,7 @@ contract FederatedML is Ownable, VRFConsumerBase, ChainlinkClient {
             "You have alredy submitted your work!"
         );
         // Check votes validity
-        checkVotesValidity(_votes);
+        require(checkVotesValidity(_votes), "Your votes are not valid!");
         // Save and apply the vote (the parameter is the index of the voted models)
         addressToWorkerInfo[msg.sender].votesGranted = _votes;
         for (uint16 index = 0; index < _votes.length; index++) {
@@ -411,7 +411,7 @@ contract FederatedML is Ownable, VRFConsumerBase, ChainlinkClient {
         }
     }
 
-    function discloseSecretVote(uint16[] _votes, string memory salt) external {
+    function discloseSecretVote(uint16[] _votes, string memory _salt) external {
         // Check disclosure phase
         require(
             state == STATE.LAST_ROUND_DISCLOSING,
@@ -427,11 +427,29 @@ contract FederatedML is Ownable, VRFConsumerBase, ChainlinkClient {
             "You have not submitted your work in time!"
         );
         // Check the validity of the vote
+        require(
+            checkSecretVoteValidity(_votes, _salt),
+            "Your secret votes are not valid!"
+        );
         // If it is the last disclosure, end the task
         if (rounds[rounds.length - 1].roundCommitment == workersInRound) {
             state = STATE.TASK_ENDED;
             emit TaskEnded();
         }
+    }
+
+    function checkSecretVoteValidity(uint16[] _votes, string memory _salt)
+        internal
+        returns (bool)
+    {
+        if (
+            keccak256(_votes, _salt) ==
+            addressToWorkerInfo[msg.sender].secretVote &&
+            checkVotesValidity(_votes)
+        ) {
+            return true;
+        }
+        return false;
     }
 
     function fulfillRandomness(bytes32 _requestId, uint256 _randomness)
