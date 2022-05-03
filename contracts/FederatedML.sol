@@ -5,6 +5,7 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
 import "@chainlink/contracts/src/v0.6/VRFConsumerBase.sol";
 import "@chainlink/contracts/src/v0.6/ChainlinkClient.sol";
+import "@chainlink/contracts/src/v0.6/interfaces/LinkTokenInterface.sol";
 
 contract FederatedML is Ownable, VRFConsumerBase, ChainlinkClient {
     //
@@ -46,6 +47,7 @@ contract FederatedML is Ownable, VRFConsumerBase, ChainlinkClient {
     uint16 voteMinutes;
     uint16 registrationMinutes;
     address coordinatorSC;
+    address linkTokenAddress;
     // To keep track of the rounds
     Round[] rounds;
     // To keep track of the rewards in a round
@@ -84,7 +86,8 @@ contract FederatedML is Ownable, VRFConsumerBase, ChainlinkClient {
         uint256 _fee,
         bytes32 _keyhash,
         address _oracleApiAddress,
-        bytes32 _jobId
+        bytes32 _jobId,
+        address _linkTokenAddress
     ) public VRFConsumerBase(_vrfCoordinator, _link) {
         require(
             _workersNumber % _roundsNumber == 0,
@@ -101,6 +104,7 @@ contract FederatedML is Ownable, VRFConsumerBase, ChainlinkClient {
         voteMinutes = _voteMinutes;
         registrationMinutes = _registrationMinutes;
         initialModelHash = _initialModelHash;
+        linkTokenAddress = _linkTokenAddress;
     }
 
     function fund() public payable {
@@ -111,6 +115,11 @@ contract FederatedML is Ownable, VRFConsumerBase, ChainlinkClient {
 
     function stopFunding() public onlyOwner {
         require(state == STATE.FUNDING, "Is not possible to stop funding now!");
+        require(
+            LinkTokenInterface(linkTokenAddress).balanceOf(address(this)) >=
+                (roundsNumber * 2) * fee, // *2 because in every round one timer and one random number +1 for the first timer but also -1 because no random number for the last round
+            "There are not enough Link funded to run the task!"
+        );
         state = STATE.REGISTERING;
         entranceFee = computeFee();
         // TODO verify there are enough LINK tokens
