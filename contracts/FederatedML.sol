@@ -16,7 +16,9 @@ contract FederatedML is Ownable, VRFConsumerBase, ChainlinkClient {
         TASK_ENDED,
         TASK_ABORTED,
         ROUND_PREPARATION,
-        ROUND_IN_PROGRESS
+        ROUND_IN_PROGRESS,
+        LAST_ROUND_IN_PROGRESS,
+        LAST_ROUND_DISCLOSING
     }
     struct WorkerInfo {
         uint256 fee;
@@ -29,6 +31,7 @@ contract FederatedML is Ownable, VRFConsumerBase, ChainlinkClient {
     }
     struct Round {
         EnumerableSet.AddressSet workers;
+        uint16 roundCommitment;
     }
 
     STATE public state;
@@ -44,6 +47,8 @@ contract FederatedML is Ownable, VRFConsumerBase, ChainlinkClient {
     address coordinatorSC;
     // To keep track of the rounds
     Round[] rounds;
+    // To keep track of the rewards in a round
+    uint256[] rewards;
     // Variables for the vrf_coordinator
     uint256 public fee;
     bytes32 public keyhash;
@@ -62,6 +67,9 @@ contract FederatedML is Ownable, VRFConsumerBase, ChainlinkClient {
     // Events
     event RequestedRandomness(bytes32 requestId); // For the VRF coordinator
     event RoundWorkersSelection(address[] workers);
+    event LastRoundWorkersSelection(address[] workers);
+    event LastRoundDisclosurePhase();
+    event TaskEnded();
 
     constructor(
         string memory _taskScript,
@@ -108,6 +116,8 @@ contract FederatedML is Ownable, VRFConsumerBase, ChainlinkClient {
     }
 
     function computeFee() internal returns (uint256) {
+        // TODO
+        // Compute the fees and the rewards in a round accordingly
         return 0.1 * 10**18;
     }
 
@@ -222,15 +232,79 @@ contract FederatedML is Ownable, VRFConsumerBase, ChainlinkClient {
     }
 
     function endRound() internal {
-        // TODO
-        // Assign rewards
-        // Start next round
+        // Assign rewards?! Better to check the position when someone claim the rewards!
+        //TODO
+        // Start next round (pay attention to the last!)
+        if (rounds.length == roundsNumber) {
+            STATE = STATE.TASK_ENDED;
+            return;
+        }
+        if (rounds.length == roundsNumber - 1) {
+            startLastRound();
+            return;
+        }
+        initializeRound();
     }
+
+    function startLastRound() internal {
+        EnumerableSet.AddressSet selectedWorkers;
+        address[] selectedWorkersArray;
+        uint256 index = 0;
+        uint16 counter = 0;
+        // Given the random numbers use it as indexes to get the workers sequentially
+        while (counter < workersInRound) {
+            address w = at(workers, index);
+            if (!addressToWorkerInfo[w].alreadySelected) {
+                addressToWorkerInfo[w].already = true;
+                add(selectedWorkers, w);
+                selectedWorkersArray.push(w);
+                counter++;
+            }
+            if (index == length(workers) - 1) {
+                index = 0;
+            } else {
+                index++;
+            }
+        }
+        rounds.push(Round(selectedWorkers));
+        // Emit an event with the choosen workers for the round
+        emit LastRoundWorkersSelection(selectedWorkersArray);
+        // Set the new state
+        state = STATE.LAST_ROUND_IN_PROGRESS;
+        // Start the timer for the round duration
+        startTimer();
+    }
+
+    // function quick(<<type>> memory data) internal pure {
+    //     if (data.length > 1) {
+    //         quickPart(data, 0, data.length - 1);
+    //     }
+    // }
+    // function quickPart(<<type>> memory data, uint low, uint high) internal pure {
+    //     if (low < high) {
+    //         uint pivotVal = data[(low + high) / 2];
+
+    //         uint low1 = low;
+    //         uint high1 = high;
+    //         for (;;) {
+    //             while (data[low1] < pivotVal) low1++;
+    //             while (data[high1] > pivotVal) high1--;
+    //             if (low1 >= high1) break;
+    //             (data[low1], data[high1]) = (data[high1], data[low1]);
+    //             low1++;
+    //             high1--;
+    //         }
+    //         if (low < high1) quickPart(data, low, high1);
+    //         high1++;
+    //         if (high1 < high) quickPart(data, high1, high);
+    //     }
+    // }
 
     function getPreviousModels() public view returns (string[]) {
         // Returns the models of the previous round (the initilization in case of the first round)
         require(
-            state == STATE.ROUND_IN_PROGRESS,
+            state == STATE.ROUND_IN_PROGRESS ||
+                state == STATE.LAST_ROUND_IN_PROGRESS,
             "There is not a round in progress currently!"
         );
         require(
@@ -255,28 +329,109 @@ contract FederatedML is Ownable, VRFConsumerBase, ChainlinkClient {
     }
 
     function commitWork(uint16[] _votes, string memory _updatedModel) external {
-        //TODO
+        // meglio mettere i votes come gli hash e non come gli indici visto che il set di workers non è ordinato
+        require(
+            state = STATE.ROUND_IN_PROGRESS,
+            "You cannot commit your work in this phase!"
+        );
         // Check if the workers is one of the round and it has not already committed
-        // Save the vote (the parameter is the index of the voted models)
+        require(
+            contains(rounds[rounds.length - 1].workers, msg.sender),
+            "You are not a selected worker of this round!"
+        );
+        require(
+            addressToWorkerInfo[msg.sender].votesGranted.length == 0,
+            "You have alredy submitted your work!"
+        );
+        // Check votes validity
+        checkVotesValidity(_votes);
+        // Save and apply the vote (the parameter is the index of the voted models)
+        addressToWorkerInfo[msg.sender].votesGranted = _votes;
+        for (uint16 index = 0; index < _votes.length; index++) {
+            addressToWorkerInfo[
+                at(rounds[rounds.length - 1].workers, _votes[index])
+            ].votesReceived++;
+        }
         // Save the updated model
-        // If it is the last commit of the round start the next
-        // If it is the second to last, start the last round
+        addressToWorkerInfo[msg.sender].modelHash = _updatedModel;
+        // Increment the commitment counter of the current round
+        rounds[rounds.length - 1].roundCommitment++;
+        // If it is the last commit of the round end the round
+        if (rounds[rounds.length - 1].roundCommitment == workersInRound) {
+            endRound();
+        }
+    }
+
+    function checkVotesValidity(uint16[] _votes) internal returns (bool) {
+        mapping(uint16 => bool) modelsVotedIndexes;
+        // Check correct number of votes
+        if (_votes.length == topWorkersInRound) {
+            for (uint16 index = 0; index < _votes.length; index++) {
+                // Check correct bound of the vote
+                if (_votes[index] < 0 && _votes[index] >= workersInRound) {
+                    return false;
+                }
+                // Check no double votes
+                if (modelsVotedIndexes[_votes[index]]) {
+                    modelsVotedIndexes[_votes[index]] = true;
+                } else {
+                    return false;
+                }
+            }
+        } else {
+            return false;
+        }
+        return true;
     }
 
     function commitSecretVote(string _secretVote) external {
-        //TODO
         // Check if it is the last round
+        require(
+            state == STATE.LAST_ROUND_IN_PROGRESS,
+            "You cannot commit a secret vote in this phase!"
+        );
         // Check if the workers is one of the round and it has not already committed
+        require(
+            contains(rounds[rounds.length - 1].workers, msg.sender),
+            "You are not a selected worker of this round!"
+        );
+        require(
+            bytes(addressToWorkerInfo[msg.sender].secretVote).length == 0,
+            "You have alredy submitted your work!"
+        );
         // Save the secret vote
+        addressToWorkerInfo[msg.sender].secretVote = _secretVote;
+        // Increment the commitment counter of the current round
+        rounds[rounds.length - 1].roundCommitment++;
         // If it was the last secret vote begin the disclosure phase
+        if (rounds[rounds.length - 1].roundCommitment == workersInRound) {
+            state = STATE.LAST_ROUND_DISCLOSING;
+            rounds[rounds.length - 1].roundCommitment = 0; // Reset to count the disclosures
+            emit LastRoundDisclosurePhase();
+        }
     }
 
     function discloseSecretVote(uint16[] _votes, string memory salt) external {
-        //TODO
         // Check disclosure phase
+        require(
+            state == STATE.LAST_ROUND_DISCLOSING,
+            "You cannot disclose a secret vote in this phase!"
+        );
         // Check if the workers is one of the last round and it has committed a secret vote
+        require(
+            contains(rounds[rounds.length - 1].workers, msg.sender),
+            "You are not a selected worker of this round!"
+        );
+        require(
+            bytes(addressToWorkerInfo[msg.sender].secretVote).length != 0,
+            "You have not submitted your work in time!"
+        );
         // Check the validity of the vote
         // If it is the last disclosure, end the task
+        if (rounds[rounds.length - 1].roundCommitment == workersInRound) {
+            state = STATE.TASK_ENDED;
+            emit TaskEnded();
+        }
     }
 
     function fulfillRandomness(bytes32 _requestId, uint256 _randomness)
