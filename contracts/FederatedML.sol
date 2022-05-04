@@ -115,6 +115,7 @@ contract FederatedML is Ownable, VRFConsumerBase, ChainlinkClient {
 
     function stopFunding() public onlyOwner {
         require(state == STATE.FUNDING, "Is not possible to stop funding now!");
+        // Verify there are enough LINK tokens
         require(
             LinkTokenInterface(linkTokenAddress).balanceOf(address(this)) >=
                 (roundsNumber * 2) * fee, // *2 because in every round one timer and one random number +1 for the first timer but also -1 because no random number for the last round
@@ -122,8 +123,6 @@ contract FederatedML is Ownable, VRFConsumerBase, ChainlinkClient {
         );
         state = STATE.REGISTERING;
         entranceFee = computeFee();
-        // TODO verify there are enough LINK tokens
-
         // Start a timer, after which we need to cancel the task and refund all funders and workers
         startTimer(registrationMinutes);
     }
@@ -132,6 +131,10 @@ contract FederatedML is Ownable, VRFConsumerBase, ChainlinkClient {
         // TODO
         // Compute the fees and the rewards in a round accordingly
         return 0.1 * 10**18;
+    }
+
+    function computeRewards() internal {
+        //TODO
     }
 
     function register() public payable {
@@ -241,11 +244,21 @@ contract FederatedML is Ownable, VRFConsumerBase, ChainlinkClient {
         recordChainlinkFulfillment(_requestId)
     {
         require(lastTimerRequestId == _requestId, "Alredy passed the phase!");
-        if (state == STATE.ROUND_PREPARATION) {
+        if (state == STATE.ROUND_IN_PROGRESS) {
             endRound();
         }
         if (state == STATE.REGISTERING) {
             state = STATE.TASK_ABORTED;
+        }
+        if (state == STATE.LAST_ROUND_IN_PROGRESS) {
+            state = STATE.LAST_ROUND_DISCLOSING;
+            rounds[rounds.length - 1].roundCommitment = 0; // Reset to count the disclosures
+            startTimer(voteMinutes);
+            emit LastRoundDisclosurePhase();
+        }
+        if (state == STATE.LAST_ROUND_DISCLOSING) {
+            state = STATE.TASK_ENDED;
+            emit TaskEnded();
         }
         return;
     }
@@ -348,7 +361,6 @@ contract FederatedML is Ownable, VRFConsumerBase, ChainlinkClient {
     }
 
     function commitWork(uint16[] _votes, string memory _updatedModel) external {
-        // meglio mettere i votes come gli hash e non come gli indici visto che il set di workers non è ordinato
         require(
             state = STATE.ROUND_IN_PROGRESS,
             "You cannot commit your work in this phase!"
@@ -391,7 +403,7 @@ contract FederatedML is Ownable, VRFConsumerBase, ChainlinkClient {
                     return false;
                 }
                 // Check no double votes
-                if (modelsVotedIndexes[_votes[index]]) {
+                if (!modelsVotedIndexes[_votes[index]]) {
                     modelsVotedIndexes[_votes[index]] = true;
                 } else {
                     return false;
@@ -426,6 +438,7 @@ contract FederatedML is Ownable, VRFConsumerBase, ChainlinkClient {
         if (rounds[rounds.length - 1].roundCommitment == workersInRound) {
             state = STATE.LAST_ROUND_DISCLOSING;
             rounds[rounds.length - 1].roundCommitment = 0; // Reset to count the disclosures
+            startTimer(voteMinutes);
             emit LastRoundDisclosurePhase();
         }
     }
@@ -450,6 +463,13 @@ contract FederatedML is Ownable, VRFConsumerBase, ChainlinkClient {
             checkSecretVoteValidity(_votes, _salt),
             "Your secret votes are not valid!"
         );
+        // Save and apply the vote (the parameter is the index of the voted models)
+        addressToWorkerInfo[msg.sender].votesGranted = _votes;
+        for (uint16 index = 0; index < _votes.length; index++) {
+            addressToWorkerInfo[
+                at(rounds[rounds.length - 1].workers, _votes[index])
+            ].votesReceived++;
+        }
         // If it is the last disclosure, end the task
         if (rounds[rounds.length - 1].roundCommitment == workersInRound) {
             state = STATE.TASK_ENDED;
@@ -462,7 +482,7 @@ contract FederatedML is Ownable, VRFConsumerBase, ChainlinkClient {
         returns (bool)
     {
         if (
-            keccak256(_votes, _salt) ==
+            keccak256(abi.encodePacked(_votes, _salt)) ==
             addressToWorkerInfo[msg.sender].secretVote &&
             checkVotesValidity(_votes)
         ) {
