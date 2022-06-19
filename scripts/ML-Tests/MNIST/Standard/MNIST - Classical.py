@@ -1,6 +1,4 @@
 import sys
-import requests
-import json
 from matplotlib import pyplot
 from sklearn.model_selection import KFold
 from tensorflow.keras.datasets import mnist
@@ -75,10 +73,10 @@ def define_model():
 # plot diagnostic learning curves
 def summarize_diagnostics(history):
     # plot loss
-    pyplot.subplot(211)
-    pyplot.title("Cross Entropy Loss")
-    pyplot.plot(history.history["loss"], color="blue", label="train")
-    pyplot.plot(history.history["val_loss"], color="orange", label="test")
+    # pyplot.subplot(211)
+    # pyplot.title("Cross Entropy Loss")
+    # pyplot.plot(history.history["loss"], color="blue", label="train")
+    # pyplot.plot(history.history["val_loss"], color="orange", label="test")
     # plot accuracy
     pyplot.subplot(212)
     pyplot.title("Classification Accuracy")
@@ -90,46 +88,24 @@ def summarize_diagnostics(history):
     pyplot.close()
 
 
-def save_to_IPFS():
-    filepath = "MNIST-model.h5"
-    # model.save_weights(filepath, overwrite=True)
-
-    response = requests.post(
-        "http://127.0.0.1:5001/api/v0/add", files={filepath: open(filepath, "rb")}
-    )
-    p = response.json()
-    hash = p["Hash"]
-    print(hash)
-
-
-def get_from_IPFS():
-    params = (("arg", "QmYr27Zwr7MYDAv4dExNtXrpe56hcG5D6oEJEAoUsVYagk"),)
-    response = requests.post("http://127.0.0.1:5001/api/v0/get", params=params)
-    print(response)
-    pass
-
-
 # run the test harness for evaluating a model
 def run_test_harness():
-    # # load dataset
-    # trainX, trainY, testX, testY = load_dataset()
-    # # prepare pixel data
-    # trainX, testX = prep_pixels(trainX, testX)
-    # # define model
-    # model = define_model()
-    # # fit model
-    # history = model.fit(
-    #     trainX, trainY, epochs=5, batch_size=64, validation_data=(testX, testY)
-    # )
-    # # evaluate model
-    # _, acc = model.evaluate(testX, testY, verbose=0)
-    # print("> %.3f" % (acc * 100.0))
-
-    # save_to_IPFS()
-    get_from_IPFS()
+    # load dataset
+    trainX, trainY, testX, testY = load_dataset()
+    # prepare pixel data
+    trainX, testX = prep_pixels(trainX, testX)
+    # define model
+    model = define_model()
+    # fit model
+    history = model.fit(
+        trainX, trainY, epochs=30, batch_size=64, validation_data=(testX, testY)
+    )
+    # evaluate model
+    _, acc = model.evaluate(testX, testY, verbose=0)
+    print("> %.3f" % (acc * 100.0))
 
     # learning curves
-    # summarize_diagnostics(history)
+    summarize_diagnostics(history)
 
 
 # entry point, run the test harness

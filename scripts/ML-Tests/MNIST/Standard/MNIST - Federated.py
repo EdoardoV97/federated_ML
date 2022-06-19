@@ -23,7 +23,7 @@ from tensorflow.keras.optimizers import SGD
 TOTAL_WORKERS = 100
 ROUNDS = 10
 WORKERS_IN_ROUND = TOTAL_WORKERS // ROUNDS  # This is K'
-BEST_K = (WORKERS_IN_ROUND + 1) // 2
+BEST_K = 3
 
 LOCAL_EPOCHS = 5
 LOCAL_BATCH_SIZE = 64
@@ -58,16 +58,15 @@ Rounds = []
 
 
 def summarize_diagnostics(history, save):
-    pyplot.title("Classification Accuracy")
+    pyplot.title("Accuracy on BEST_K = " + str(BEST_K * 10) + "%")
     pyplot.plot(history, color="blue", label="test")
 
     # save plot to file
-
     if save:
         filename = sys.argv[0].split("/")[-1]
-        pyplot.savefig(filename + "_plot.png")
+        pyplot.savefig(filename + str(BEST_K) + "_plot.png")
 
-    pyplot.show()
+    # pyplot.show()
     pyplot.close()
 
 
@@ -127,27 +126,15 @@ def initialize():
     # prepare pixel data
     trainX, testX = prep_pixels(trainX, testX)
     trainX, trainY = shuffle(trainX, trainY)
-    initialization_size = 10000
-    step_size = int(((60000 - initialization_size) / ROUNDS) / WORKERS_IN_ROUND)
+    step_size = int((60000 / ROUNDS) / WORKERS_IN_ROUND)
     print(f"Number of data for every worker: {step_size}")
-
-    # For the first round(ROUND 0) simulate the presence of only 1 worker, so only 1 model
-    init_trainX = trainX[: initialization_size - 9500, :]
-    init_trainY = trainY[: initialization_size - 9500, :]
 
     # define model
     model = define_model()
-    # fit starting model
-    model.fit(
-        init_trainX,
-        init_trainY,
-        epochs=1,
-        batch_size=64,
-        validation_data=(testX, testY),
-    )
-    # evaluate starting model
+
+    # Evaluate Starting model
     _, acc = model.evaluate(testX, testY, verbose=0)
-    print("\nInitial accuracy > %.3f" % (acc * 100.0))
+    print("\nInitial accuracy: %.3f" % (acc * 100.0))
     w = Worker(trainX, trainY)
     w.localOutput.model = model
     Rounds[0].workers.append(w)
@@ -155,15 +142,11 @@ def initialize():
     # Split the dataset among the workers
     for i in range(TOTAL_WORKERS):
         splitX = trainX[
-            initialization_size
-            + step_size * (i) : initialization_size
-            + step_size * (i + 1),
+            step_size * (i) : step_size * (i + 1),
             :,
         ]
         splitY = trainY[
-            initialization_size
-            + step_size * (i) : initialization_size
-            + step_size * (i + 1),
+            step_size * (i) : step_size * (i + 1),
             :,
         ]
         Rounds[(i // WORKERS_IN_ROUND) + 1].workers.append(Worker(splitX, splitY))
@@ -211,10 +194,14 @@ def local_update(evaluator: Worker, workersToEvaluate: list[Worker]):
         batch_size=64,
         verbose=0,
     )
-    trainX, trainY, testX, testY = load_dataset()
+    _, _, testX, testY = load_dataset()
     _, acc = model.evaluate(testX, testY, verbose=0)
     # print("Accuracy after local training > %.3f" % (acc * 100.0))
     evaluator.localOutput.model = new_model  # 2nd OUTPUT
+
+    text_file = open("accuracies" + str(BEST_K) + ".txt", "a")
+    text_file.write("\n" + str(acc * 100))
+    text_file.close()
     return acc * 100.0
 
 
@@ -232,16 +219,16 @@ def do_Round(i):
 
 # run the test harness for evaluating a model
 def main():
-    # Create 1 additional round to simulate the presence of the ROUND 0 where only 1 model is present
-    for i in range(ROUNDS + 1):
-        Rounds.append(Round())
-
     acc = initialize()
 
     history = [acc]
     for r in range(ROUNDS):
         # input("Press to start new round...")
         print(f"\n\nStarting round: [{r+1}]")
+        text_file = open("accuracies" + str(BEST_K) + ".txt", "a")
+        text_file.write("\nStarting round " + str(r + 1))
+        text_file.close()
+
         acc = do_Round(r + 1)
         history.append(acc)
         summarize_diagnostics(history, False)
@@ -249,4 +236,11 @@ def main():
 
 
 # entry point
-main()
+for _ in range(ROUNDS + 1):
+    Rounds.append(Round())
+for i in range(5, 10):
+    # Create 1 additional round to simulate the presence of the ROUND 0 where only 1 model is present
+    for k in range(len(Rounds)):
+        Rounds[k].workers = []
+    BEST_K = i + 1
+    main()

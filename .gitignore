@@ -10,3 +10,4 @@ client-config.json
 # File types
 *.h5
 *.png
+*.txt
