@@ -1,6 +1,5 @@
 import sys
 from matplotlib import pyplot
-from sklearn.model_selection import KFold
 from tensorflow.keras.datasets import mnist
 from tensorflow.keras.utils import to_categorical
 from tensorflow.keras.models import Sequential
