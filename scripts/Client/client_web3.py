@@ -85,3 +85,22 @@ def sendResponse(local_output: LocalOutput):
     # tx_receipt = w3.eth.wait_for_transaction_receipt(tx_hash)
     # print("DONE!")
     pass
+
+
+# def save_to_IPFS():
+#     filepath = "MNIST-model.h5"
+#     # model.save_weights(filepath, overwrite=True)
+
+#     response = requests.post(
+#         "http://127.0.0.1:5001/api/v0/add", files={filepath: open(filepath, "rb")}
+#     )
+#     p = response.json()
+#     hash = p["Hash"]
+#     print(hash)
+
+
+# def get_from_IPFS():
+#     params = (("arg", "QmYr27Zwr7MYDAv4dExNtXrpe56hcG5D6oEJEAoUsVYagk"),)
+#     response = requests.post("http://127.0.0.1:5001/api/v0/get", params=params)
+#     print(response)
+#     pass
