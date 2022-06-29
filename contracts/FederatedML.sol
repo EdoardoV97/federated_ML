@@ -454,7 +454,7 @@ contract FederatedML is Ownable, VRFConsumerBase, ChainlinkClient {
 
     function commitWork(uint16[] _votes, string memory _updatedModel) external {
         require(
-            state = STATE.ROUND_IN_PROGRESS,
+            state == STATE.ROUND_IN_PROGRESS,
             "You cannot commit your work in this phase!"
         );
         // Check if the workers is one of the round and it has not already committed
@@ -466,14 +466,16 @@ contract FederatedML is Ownable, VRFConsumerBase, ChainlinkClient {
             addressToWorkerInfo[msg.sender].votesGranted.length == 0,
             "You have alredy submitted your work!"
         );
-        // Check votes validity
-        require(checkVotesValidity(_votes), "Your votes are not valid!");
-        // Save and apply the vote (the parameter is the index of the voted models)
-        addressToWorkerInfo[msg.sender].votesGranted = _votes;
-        for (uint16 index = 0; index < _votes.length; index++) {
-            addressToWorkerInfo[
-                at(rounds[rounds.length - 1].workers, _votes[index])
-            ].votesReceived++;
+        if (rounds.length != 1) {
+            // Check votes validity
+            require(checkVotesValidity(_votes), "Your votes are not valid!");
+            // Save and apply the vote (the parameter is the index of the voted models)
+            addressToWorkerInfo[msg.sender].votesGranted = _votes;
+            for (uint16 index = 0; index < _votes.length; index++) {
+                addressToWorkerInfo[
+                    at(rounds[rounds.length - 1].workers, _votes[index])
+                ].votesReceived++;
+            }
         }
         // Save the updated model
         addressToWorkerInfo[msg.sender].modelHash = _updatedModel;
