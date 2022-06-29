@@ -162,8 +162,8 @@ contract FederatedML is Ownable, VRFConsumerBase, ChainlinkClient {
         return;
     }
 
-    function computeRewardCoefficient(uint64 j) internal returns (uint256) {
-        return (workersInRound - 2 * j + 1) / (workersInRound - 1);
+    function computeRewardCoefficient(uint64 _j) internal returns (uint256) {
+        return (workersInRound - 2 * _j + 1) / (workersInRound - 1);
     }
 
     function register() public payable {
@@ -227,16 +227,16 @@ contract FederatedML is Ownable, VRFConsumerBase, ChainlinkClient {
         addressToWorkerInfo[msg.sender].rewardTaken = true;
     }
 
-    function searchRoundOfWorker(address worker) internal returns (int64) {
+    function searchRoundOfWorker(address _worker) internal returns (int64) {
         for (uint64 index = 0; index < rounds.length; index++) {
-            if (contains(rounds[index].workers, worker)) {
+            if (contains(rounds[index].workers, _worker)) {
                 return index;
             }
         }
         return -1;
     }
 
-    function computeRanking(uint64 roundIndex)
+    function computeRanking(uint64 _roundIndex)
         internal
         returns (address[] memory)
     {
@@ -244,17 +244,17 @@ contract FederatedML is Ownable, VRFConsumerBase, ChainlinkClient {
         uint256[] memory votes;
         mapping(address => uint256) roundWorkersToReceivedVotes;
 
-        for (uint256 j = 0; j < length(rounds[roundIndex + 1].workers); j++) {
-            address workerVoter = at(rounds[roundIndex + 1].workers, j);
+        for (uint256 j = 0; j < length(rounds[_roundIndex + 1].workers); j++) {
+            address workerVoter = at(rounds[_roundIndex + 1].workers, j);
             for (uint256 i = 0; i < workerVoter.votesGranted.length; i++) {
                 roundWorkersToReceivedVotes[workerVoter.votesGranted[i]]++;
             }
         }
 
-        for (uint256 i = 0; i < length(rounds[roundIndex].workers); i++) {
-            ranking.push(at(rounds[roundIndex].workers, i));
+        for (uint256 i = 0; i < length(rounds[_roundIndex].workers); i++) {
+            ranking.push(at(rounds[_roundIndex].workers, i));
             votes.push(
-                roundWorkersToReceivedVotes[at(rounds[roundIndex].workers, i)]
+                roundWorkersToReceivedVotes[at(rounds[_roundIndex].workers, i)]
             );
         }
 
@@ -264,34 +264,34 @@ contract FederatedML is Ownable, VRFConsumerBase, ChainlinkClient {
     }
 
     function quickSort(
-        uint256[] memory arr,
-        address[] memory arr2,
-        int256 left,
-        int256 right
+        uint256[] memory _arr,
+        address[] memory _arr2,
+        int256 _left,
+        int256 _right
     ) internal returns (uint256[] memory, string[] memory) {
-        int256 i = left;
-        int256 j = right;
-        if (i == j) return (arr, arr2);
-        uint256 pivot = arr[uint256(left + (right - left) / 2)];
+        int256 i = _left;
+        int256 j = _right;
+        if (i == j) return (_arr, _arr2);
+        uint256 pivot = _arr[uint256(_left + (_right - _left) / 2)];
         while (i <= j) {
-            while (arr[uint256(i)] > pivot) i++;
-            while (pivot > arr[uint256(j)]) j--;
+            while (_arr[uint256(i)] > pivot) i++;
+            while (pivot > _arr[uint256(j)]) j--;
             if (i <= j) {
-                (arr[uint256(i)], arr[uint256(j)]) = (
-                    arr[uint256(j)],
-                    arr[uint256(i)]
+                (_arr[uint256(i)], _arr[uint256(j)]) = (
+                    _arr[uint256(j)],
+                    _arr[uint256(i)]
                 );
-                (arr2[uint256(i)], arr2[uint256(j)]) = (
-                    arr2[uint256(j)],
-                    arr2[uint256(i)]
+                (_arr2[uint256(i)], _arr2[uint256(j)]) = (
+                    _arr2[uint256(j)],
+                    _arr2[uint256(i)]
                 );
                 i++;
                 j--;
             }
         }
-        if (left < j) quickSort(arr, arr2, left, j);
-        if (i < right) quickSort(arr, arr2, i, right);
-        return (arr, arr2);
+        if (left < j) quickSort(_arr, _arr2, _left, j);
+        if (i < right) quickSort(_arr, _arr2, i, _right);
+        return (_arr, _arr2);
     }
 
     function unfund() public {
@@ -435,32 +435,7 @@ contract FederatedML is Ownable, VRFConsumerBase, ChainlinkClient {
         startTimer(voteMinutes);
     }
 
-    // function quick(<<type>> memory data) internal pure {
-    //     if (data.length > 1) {
-    //         quickPart(data, 0, data.length - 1);
-    //     }
-    // }
-    // function quickPart(<<type>> memory data, uint low, uint high) internal pure {
-    //     if (low < high) {
-    //         uint pivotVal = data[(low + high) / 2];
-
-    //         uint low1 = low;
-    //         uint high1 = high;
-    //         for (;;) {
-    //             while (data[low1] < pivotVal) low1++;
-    //             while (data[high1] > pivotVal) high1--;
-    //             if (low1 >= high1) break;
-    //             (data[low1], data[high1]) = (data[high1], data[low1]);
-    //             low1++;
-    //             high1--;
-    //         }
-    //         if (low < high1) quickPart(data, low, high1);
-    //         high1++;
-    //         if (high1 < high) quickPart(data, high1, high);
-    //     }
-    // }
-
-    function getPreviousModels() public view returns (string[]) {
+    function getPreviousModels() public view returns (string[] memory) {
         // Returns the models of the previous round (the initilization in case of the first round)
         require(
             state == STATE.ROUND_IN_PROGRESS ||
