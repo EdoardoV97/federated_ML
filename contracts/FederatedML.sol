@@ -84,13 +84,12 @@ contract FederatedML is Ownable, VRFConsumerBase, ChainlinkClient {
         uint16 _registrationMinutes,
         string _initialModelHash,
         address _vrfCoordinator,
-        address _link,
+        address _linkTokenAddress,
         uint256 _fee,
         bytes32 _keyhash,
         address _oracleApiAddress,
         bytes32 _jobId,
-        address _linkTokenAddress
-    ) public VRFConsumerBase(_vrfCoordinator, _link) {
+    ) public VRFConsumerBase(_vrfCoordinator, _linkTokenAddress) {
         require(
             _workersNumber % _roundsNumber == 0,
             "The number of workers must be a multiple of the number of rounds!"
