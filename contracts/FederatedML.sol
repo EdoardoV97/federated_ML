@@ -22,8 +22,8 @@ contract FederatedML is Ownable, VRFConsumerBase, ChainlinkClient {
         LAST_ROUND_DISCLOSING
     }
     struct WorkerInfo {
-        uint256 fee;
-        uint256 reward;
+        bool fee;
+        bool rewardTaken;
         uint16 votesReceived;
         address[] votesGranted;
         string secretVote;
@@ -33,6 +33,7 @@ contract FederatedML is Ownable, VRFConsumerBase, ChainlinkClient {
     struct Round {
         EnumerableSet.AddressSet workers;
         uint16 roundCommitment;
+        address[] ranking;
     }
 
     STATE public state;
@@ -52,6 +53,7 @@ contract FederatedML is Ownable, VRFConsumerBase, ChainlinkClient {
     Round[] rounds;
     // To keep track of the rewards in a round
     uint256[] rewards;
+    uint256 totalRoundReward;
     // Variables for the vrf_coordinator
     uint256 public fee;
     bytes32 public keyhash;
@@ -122,29 +124,56 @@ contract FederatedML is Ownable, VRFConsumerBase, ChainlinkClient {
             "There are not enough Link funded to run the task!"
         );
         state = STATE.REGISTERING;
-        entranceFee = computeFee();
+        computeFeeAndRewards();
         // Start a timer, after which we need to cancel the task and refund all funders and workers
         startTimer(registrationMinutes);
     }
 
-    function computeFee() internal returns (uint256) {
-        // TODO
-        // Compute the fees and the rewards in a round accordingly
-        return 0.1 * 10**18;
+    function computeFeeAndRewards() internal {
+        uint256 lowerBound;
+        uint256 upperBound;
+        uint256 bounty = address(this).balance;
+        uint256 r1;
+        uint256[topWorkersInRound] coefficients;
+        uint256 coefficientsSum;
+        for (uint64 j = 0; j < coefficients.length; j++) {
+            coefficients[j] = computeRewardCoefficient(j + 1);
+            coefficientsSum += coefficients[j];
+        }
+        r1 =
+            bounty /
+            (coefficientsSum *
+                roundsNumber -
+                (workersNumber / ((workersInRound / 2) + 2)));
+        upperBound =
+            ((workersInRound - 2 * topWorkersInRound + 1) /
+                (workersInRound - 1)) *
+            r1;
+        lowerBound = r1 / ((workersInRound / 2) + 2);
+        require(
+            lowerBound <= upperBound,
+            "Is not possible to compute a valid fee in the current setting!"
+        );
+        entranceFee = lowerBound;
+        for (uint64 j = 0; j < coefficients.length; j++) {
+            rewards.push(coefficients[j] * r1);
+            totalRoundReward += rewards[j];
+        }
+        return;
     }
 
-    function computeRewards() internal {
-        //TODO
+    function computeRewardCoefficient(uint64 j) internal returns (uint256) {
+        return (workersInRound - 2 * j + 1) / (workersInRound - 1);
     }
 
     function register() public payable {
         require(state == STATE.REGISTERING, "Is not possible to register now!");
-        require(msg.value >= entranceFee, "Minimum fee not satisfied!");
+        require(msg.value == entranceFee, "Minimum fee not satisfied!");
         require(
-            addressToWorkerInfo[msg.sender].fee != 0,
+            addressToWorkerInfo[msg.sender].fee == false,
             "You are already registered!"
         ); // It requires that entranceFee is not 0
-        addressToWorkerInfo[msg.sender].fee += msg.value;
+        addressToWorkerInfo[msg.sender].fee = true;
         add(workers, msg.sender);
         if (length(workers) >= workersNumber) {
             initializeRound();
@@ -153,15 +182,116 @@ contract FederatedML is Ownable, VRFConsumerBase, ChainlinkClient {
 
     function withdrawReward() public payable {
         require(
-            addressToWorkerInfo[msg.sender].fee != 0,
+            addressToWorkerInfo[msg.sender].fee == true,
             "You were not registered!"
         );
+        // Search the round in which there is the worker
+        int64 roundIndex;
+        roundIndex = searchRoundOfWorker(msg.sender);
+        // Check if the worker was selected in a round
+        require(roundIndex != -1, "You have not yet worked in a round!");
+        // Check the round is concluded and also the successive
         require(
-            addressToWorkerInfo[msg.sender].reward != 0,
-            "You have no reward for this task!"
+            rounds[roundIndex].roundCommitment == workersInRound,
+            "The round is not terminated!"
         );
-        msg.sender.transfer(addressToWorkerInfo[msg.sender].reward);
-        addressToWorkerInfo[msg.sender].reward = 0;
+        require(
+            rounds.length =
+                roundsNumber ||
+                rounds[roundIndex + 1].roundCommitment == workersInRound,
+            "The successive round is not already terminated!"
+        );
+        require(
+            addressToWorkerInfo[msg.sender].rewardTaken == false,
+            "The reward was already withdrawed!"
+        );
+        // Sum the votes considering the successive round
+        if (
+            rounds[roundIndex].ranking.length == 0 &&
+            rounds.length != roundsNumber
+        ) {
+            rounds[roundIndex].ranking = computeRanking();
+        }
+        //Check if last round
+        if (rounds.length == roundsNumber) {
+            // Uniform distribution
+            msg.sender.transfer(totalRoundReward / workersInRound);
+        } else {
+            // w.r.t. the ranking give the correct reward
+            for (uint256 i = 0; i < topWorkersInRound; i++) {
+                if (msg.sender == rounds[roundIndex].ranking[i]) {
+                    msg.sender.transfer(rewards[i]);
+                }
+            }
+        }
+        addressToWorkerInfo[msg.sender].rewardTaken = true;
+    }
+
+    function searchRoundOfWorker(address worker) internal returns (int64) {
+        for (uint64 index = 0; index < rounds.length; index++) {
+            if (contains(rounds[index].workers, worker)) {
+                return index;
+            }
+        }
+        return -1;
+    }
+
+    function computeRanking(uint64 roundIndex)
+        internal
+        returns (address[] memory)
+    {
+        address[] memory ranking;
+        uint256[] memory votes;
+        mapping(address => uint256) roundWorkersToReceivedVotes;
+
+        for (uint256 j = 0; j < length(rounds[roundIndex + 1].workers); j++) {
+            address workerVoter = at(rounds[roundIndex + 1].workers, j);
+            for (uint256 i = 0; i < workerVoter.votesGranted.length; i++) {
+                roundWorkersToReceivedVotes[workerVoter.votesGranted[i]]++;
+            }
+        }
+
+        for (uint256 i = 0; i < length(rounds[roundIndex].workers); i++) {
+            ranking.push(at(rounds[roundIndex].workers, i));
+            votes.push(
+                roundWorkersToReceivedVotes[at(rounds[roundIndex].workers, i)]
+            );
+        }
+
+        (votes, ranking) = quickSort(votes, ranking, 0, votes.length - 1);
+
+        return ranking;
+    }
+
+    function quickSort(
+        uint256[] memory arr,
+        address[] memory arr2,
+        int256 left,
+        int256 right
+    ) internal returns (uint256[] memory, string[] memory) {
+        int256 i = left;
+        int256 j = right;
+        if (i == j) return (arr, arr2);
+        uint256 pivot = arr[uint256(left + (right - left) / 2)];
+        while (i <= j) {
+            while (arr[uint256(i)] > pivot) i++;
+            while (pivot > arr[uint256(j)]) j--;
+            if (i <= j) {
+                (arr[uint256(i)], arr[uint256(j)]) = (
+                    arr[uint256(j)],
+                    arr[uint256(i)]
+                );
+                (arr2[uint256(i)], arr2[uint256(j)]) = (
+                    arr2[uint256(j)],
+                    arr2[uint256(i)]
+                );
+                i++;
+                j--;
+            }
+        }
+        if (left < j) quickSort(arr, arr2, left, j);
+        if (i < right) quickSort(arr, arr2, i, right);
+        return (arr, arr2);
     }
 
     function unfund() public {
@@ -184,11 +314,11 @@ contract FederatedML is Ownable, VRFConsumerBase, ChainlinkClient {
             "Not possible to unregister in this phase!"
         );
         require(
-            addressToWorkerInfo[msg.sender].fee != 0,
+            addressToWorkerInfo[msg.sender].fee == true,
             "You are not registered to this task!"
         );
-        msg.sender.transfer(addressToWorkerInfo[msg.sender].fee);
-        addressToWorkerInfo[msg.sender].fee = 0;
+        msg.sender.transfer(entranceFee);
+        addressToWorkerInfo[msg.sender].fee = false;
         // remove from the list of
         remove(workers, msg.sender);
     }
@@ -264,8 +394,6 @@ contract FederatedML is Ownable, VRFConsumerBase, ChainlinkClient {
     }
 
     function endRound() internal {
-        // Assign rewards?! Better to check the position when someone claim the rewards!
-        //TODO
         // Start next round (pay attention to the last!)
         if (rounds.length == roundsNumber) {
             STATE = STATE.TASK_ENDED;
