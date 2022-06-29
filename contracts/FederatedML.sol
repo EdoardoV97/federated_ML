@@ -241,20 +241,10 @@ contract FederatedML is Ownable, VRFConsumerBase, ChainlinkClient {
     {
         address[] memory ranking;
         uint256[] memory votes;
-        mapping(address => uint256) roundWorkersToReceivedVotes;
-
-        for (uint256 j = 0; j < length(rounds[_roundIndex + 1].workers); j++) {
-            address workerVoter = at(rounds[_roundIndex + 1].workers, j);
-            for (uint256 i = 0; i < workerVoter.votesGranted.length; i++) {
-                roundWorkersToReceivedVotes[workerVoter.votesGranted[i]]++;
-            }
-        }
 
         for (uint256 i = 0; i < length(rounds[_roundIndex].workers); i++) {
             ranking.push(at(rounds[_roundIndex].workers, i));
-            votes.push(
-                roundWorkersToReceivedVotes[at(rounds[_roundIndex].workers, i)]
-            );
+            votes.push(at(rounds[_roundIndex].workers, i).votesReceived);
         }
 
         (votes, ranking) = quickSort(votes, ranking, 0, votes.length - 1);
