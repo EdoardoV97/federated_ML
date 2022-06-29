@@ -103,7 +103,7 @@ def define_model():
     return model
 
 
-def local_update(workersToEvaluate: list[WorkerToEvaluate]):
+def local_update(workersToEvaluate: list[WorkerToEvaluate], isLastRound: bool):
     # 1) EVALUATE PULLED MODELS AND SELECT BEST K' WORKERS
     # k = 1
     for w in workersToEvaluate:
@@ -115,44 +115,51 @@ def local_update(workersToEvaluate: list[WorkerToEvaluate]):
         w.accuracy = acc
         # k = k + 1
 
-    workersToEvaluate.sort(key=get_loss)
-    localOutput.bestKWorkers = workersToEvaluate[
-        : min(max(BEST_K, 1), len(workersToEvaluate))
-    ]  # 1st OUTPUT
+    bestVotedWorkers = workersToEvaluate
+    bestVotedWorkers.sort(key=get_loss)
+    bestVotedWorkers = bestVotedWorkers[: min(max(BEST_K, 1), len(workersToEvaluate))]
+    for w in bestVotedWorkers:
+        for w2 in workersToEvaluate:
+            if w.weightsFile == w2.weightsFile:
+                localOutput.bestKWorkers.append(
+                    workersToEvaluate.index(w2)
+                )  # 1st OUTPUT
 
-    # 2) AVERAGE BEST K' models
-    weights = [w.localOutput.model.get_weights() for w in localOutput.bestKWorkers]
-    new_weights = list()
-    for weights_list_tuple in zip(*weights):
-        new_weights.append(
-            np.array([np.array(w).mean(axis=0) for w in zip(*weights_list_tuple)])
+    if not isLastRound:
+        # 2) AVERAGE BEST K' models
+        weights = [w.localOutput.model.get_weights() for w in localOutput.bestKWorkers]
+        new_weights = list()
+        for weights_list_tuple in zip(*weights):
+            new_weights.append(
+                np.array([np.array(w).mean(axis=0) for w in zip(*weights_list_tuple)])
+            )
+
+        # Set the average as starting new model
+        new_model = define_model()
+        new_model.set_weights(new_weights)
+
+        # 3) LOCAL TRAINING
+        new_model.fit(
+            localDataset.X,
+            localDataset.Y,
+            epochs=LOCAL_EPOCHS,
+            batch_size=64,
+            verbose=0,
         )
-
-    # Set the average as starting new model
-    new_model = define_model()
-    new_model.set_weights(new_weights)
-
-    # 3) LOCAL TRAINING
-    new_model.fit(
-        localDataset.X,
-        localDataset.Y,
-        epochs=LOCAL_EPOCHS,
-        batch_size=64,
-        verbose=0,
-    )
-    # trainX, trainY, testX, testY = load_dataset()
-    # _, acc = model.evaluate(testX, testY, verbose=0)
-    # print("Accuracy after local training > %.3f" % (acc * 100.0))
-    localOutput.model = new_model  # 2nd OUTPUT
-    return acc * 100.0
+        # trainX, trainY, testX, testY = load_dataset()
+        # _, acc = model.evaluate(testX, testY, verbose=0)
+        # print("Accuracy after local training > %.3f" % (acc * 100.0))
+        model.save_weights("myModel")  # 2nd OUTPUT
+        localOutput.model = "myModel"
+        return acc * 100.0
 
 
-def run(workersToEvaluate: list[WorkerToEvaluate]):
+def run_learning(workersToEvaluate: list[WorkerToEvaluate], isLastRound: bool):
     # Initialize the local dataset
     get_localDataset()
 
     # Do local training
-    local_update(workersToEvaluate)
+    local_update(workersToEvaluate, isLastRound)
 
     # Return the output
     return localOutput
