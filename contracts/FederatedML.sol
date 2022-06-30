@@ -38,7 +38,6 @@ contract FederatedML is Ownable, VRFConsumerBase, ChainlinkClient {
     }
 
     STATE public state;
-    string taskScript;
     uint16 workersNumber;
     uint16 roundsNumber;
     uint16 workersInRound;
@@ -77,7 +76,6 @@ contract FederatedML is Ownable, VRFConsumerBase, ChainlinkClient {
     event TaskEnded();
 
     constructor(
-        string memory _taskScript,
         uint16 _workersNumber,
         uint16 _roundsNumber,
         uint16 _voteMinutes,
@@ -94,7 +92,6 @@ contract FederatedML is Ownable, VRFConsumerBase, ChainlinkClient {
             _workersNumber % _roundsNumber == 0,
             "The number of workers must be a multiple of the number of rounds!"
         );
-        taskScript = _taskScript;
         workersNumber = _workersNumber;
         roundsNumber = _roundsNumber;
         state = STATE.FUNDING;
