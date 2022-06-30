@@ -7,7 +7,6 @@ compiler:
       - '@openzeppelin=OpenZeppelin/openzeppelin-contracts@4.2.0'
       - '@chainlink=smartcontractkit/chainlink-brownie-contracts@0.4.1'
 
-
 dotenv: .env
 networks:
   development:
@@ -15,6 +14,14 @@ networks:
   ganache:
     verify: False
   kovan:
+    verify: True
+    vrf_coordinator: '0xdD3782915140c8f3b190B5D67eAc6dc5760C46E9'
+    link_token: '0xa36085F69e2889c224210F603D836748e7dC0088'
+    fee: 100000000000000000
+    keyhash: '0x6c3699283bda56ad74f6b855546325b68d482e983852a7a82979cc4807b641f4'
+    api_oracle: '0xc57B33452b4F7BB189bB5AfaE9cc4aBa1f7a4FD8'
+    job_id: '7401f318127148a894c00c292e486ffd'
+  eth-kovan-fork:
     verify: True
     vrf_coordinator: '0xdD3782915140c8f3b190B5D67eAc6dc5760C46E9'
     link_token: '0xa36085F69e2889c224210F603D836748e7dC0088'
@@ -47,13 +54,3 @@ networks:
 
 wallets:
   from_key: ${PRIVATE_KEY}
-
-# compiler:
-#     solc:
-#         remappings:
-#         - '@openzeppelin=OpenZeppelin/openzeppelin-contracts@4.2.0'
-#         - '@chainlink=smartcontractkit/chainlink-brownie-contracts@0.4.1'
-#         optimizer:
-#             enabled: true
-#             runs: 200
-#         viaIR: true
