@@ -37,7 +37,7 @@ contract FederatedML is Ownable, VRFConsumerBase, ChainlinkClient {
         address[] ranking;
     }
 
-    STATE public state;
+    STATE public state = STATE.FUNDING;
     uint16 workersNumber;
     uint16 roundsNumber;
     uint16 workersInRound;
@@ -76,10 +76,10 @@ contract FederatedML is Ownable, VRFConsumerBase, ChainlinkClient {
     event TaskEnded();
 
     constructor(
-        uint16 _workersNumber,
-        uint16 _roundsNumber,
-        uint16 _voteMinutes,
-        uint16 _registrationMinutes,
+        // uint16 _workersNumber,
+        // uint16 _roundsNumber,
+        // uint16 _voteMinutes,
+        // uint16 _registrationMinutes,
         string memory _initialModelHash,
         address _vrfCoordinator,
         address _linkTokenAddress,
@@ -88,19 +88,20 @@ contract FederatedML is Ownable, VRFConsumerBase, ChainlinkClient {
         address _oracleApiAddress,
         bytes32 _jobId
     ) VRFConsumerBase(_vrfCoordinator, _linkTokenAddress) {
-        require(
-            _workersNumber % _roundsNumber == 0,
-            "The number of workers must be a multiple of the number of rounds!"
-        );
-        workersNumber = _workersNumber;
-        roundsNumber = _roundsNumber;
-        state = STATE.FUNDING;
+        // require(
+        //     _workersNumber % _roundsNumber == 0,
+        //     "The number of workers must be a multiple of the number of rounds!"
+        // );
+        // workersNumber = _workersNumber;
+        // roundsNumber = _roundsNumber;
+        workersNumber = 6;
+        roundsNumber = 3;
         fee = _fee;
         keyhash = _keyhash;
         oracleApiAddress = _oracleApiAddress;
         jobId = _jobId;
-        voteMinutes = _voteMinutes;
-        registrationMinutes = _registrationMinutes;
+        // voteMinutes = _voteMinutes;
+        // registrationMinutes = _registrationMinutes;
         initialModelHash = _initialModelHash;
         linkTokenAddress = _linkTokenAddress;
     }
@@ -240,7 +241,6 @@ contract FederatedML is Ownable, VRFConsumerBase, ChainlinkClient {
     {
         address[] memory ranking = new address[](workersInRound);
         uint256[] memory votes = new uint256[](workersInRound);
-
         for (
             uint256 i = 0;
             i < EnumerableSet.length(rounds[_roundIndex].workers);
@@ -251,14 +251,12 @@ contract FederatedML is Ownable, VRFConsumerBase, ChainlinkClient {
                 EnumerableSet.at(rounds[_roundIndex].workers, i)
             ].votesReceived;
         }
-
         (votes, ranking) = quickSort(
             votes,
             ranking,
             0,
             int256(votes.length) - 1
         );
-
         return ranking;
     }
 
@@ -339,7 +337,6 @@ contract FederatedML is Ownable, VRFConsumerBase, ChainlinkClient {
             address w = EnumerableSet.at(workers, index);
             if (!addressToWorkerInfo[w].alreadySelected) {
                 addressToWorkerInfo[w].alreadySelected = true;
-
                 selectedWorkersArray[arrayIndex] = w;
                 arrayIndex++;
                 counter++;
@@ -350,14 +347,12 @@ contract FederatedML is Ownable, VRFConsumerBase, ChainlinkClient {
                 index++;
             }
         }
-
         uint256 idx = rounds.length;
         rounds.push();
         Round storage tempRound = rounds[idx];
         for (uint256 k = 0; k < selectedWorkersArray.length; k++) {
             EnumerableSet.add(tempRound.workers, selectedWorkersArray[k]);
         }
-
         // Emit an event with the choosen workers for the round
         emit RoundWorkersSelection(selectedWorkersArray);
         // Set the new state
