@@ -468,7 +468,7 @@ contract FederatedML is Ownable, VRFConsumerBase, ChainlinkClient {
             i++
         ) {
             previousModelHashes[i] = addressToWorkerInfo[
-                EnumerableSet.at(rounds[rounds.length - 1].workers, i)
+                EnumerableSet.at(rounds[rounds.length - 2].workers, i)
             ].modelHash;
         }
         return previousModelHashes;
@@ -496,9 +496,10 @@ contract FederatedML is Ownable, VRFConsumerBase, ChainlinkClient {
         if (rounds.length != 1) {
             // Check votes validity
             require(checkVotesValidity(_votes), "Your votes are not valid!");
-            // Save and apply the vote (the parameter is the index of the voted models)
-            // TODO convert indexes to addresses
-            //addressToWorkerInfo[msg.sender].votesGranted = _votes;
+            // Save and apply the votes
+            // Convert indexes to respective addresses
+            addressToWorkerInfo[msg.sender]
+                .votesGranted = convertIndexesToAddresses(_votes);
             for (uint16 index = 0; index < _votes.length; index++) {
                 addressToWorkerInfo[
                     EnumerableSet.at(
@@ -539,6 +540,20 @@ contract FederatedML is Ownable, VRFConsumerBase, ChainlinkClient {
             return false;
         }
         return true;
+    }
+
+    function convertIndexesToAddresses(uint16[] memory _votes)
+        internal
+        returns (address[] memory)
+    {
+        address[] memory votesAddresses = new address[](_votes.length);
+        for (uint256 i = 0; i < _votes.length; i++) {
+            votesAddresses[i] = EnumerableSet.at(
+                rounds[rounds.length - 2].workers,
+                _votes[i]
+            );
+        }
+        return votesAddresses;
     }
 
     function commitSecretVote(bytes32 _secretVote) external {
@@ -598,16 +613,15 @@ contract FederatedML is Ownable, VRFConsumerBase, ChainlinkClient {
             "Your secret votes are not valid!"
         );
         // Save and apply the vote (the parameter is the index of the voted models)
-        // TODO repre...
-        //addressToWorkerInfo[msg.sender].votesGranted = _votes;
+        addressToWorkerInfo[msg.sender]
+            .votesGranted = convertIndexesToAddresses(_votes);
         for (uint16 index = 0; index < _votes.length; index++) {
-            // TODO fix the votes indexes representation...
-            // addressToWorkerInfo[
-            //     EnumerableSet.at(
-            //         rounds[rounds.length - 1].workers,
-            //         _votes[index]
-            //     )
-            // ].votesReceived++;
+            addressToWorkerInfo[
+                EnumerableSet.at(
+                    rounds[rounds.length - 1].workers,
+                    _votes[index]
+                )
+            ].votesReceived++;
         }
         // If it is the last disclosure, end the task
         if (rounds[rounds.length - 1].roundCommitment == workersInRound) {
