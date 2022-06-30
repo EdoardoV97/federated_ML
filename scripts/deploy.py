@@ -36,7 +36,7 @@ def deploy_FederatedML():
 
     # Fund with link
     tx = fund_with_link(
-        federatedML_contract.address, account=get_account()
+        federatedML_contract.address, account=get_account(key=True)
     )  # attenzione
     tx.wait(1)
 
