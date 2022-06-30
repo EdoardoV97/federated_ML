@@ -1,4 +1,4 @@
-from brownie import network, accounts, config, Contract, FederatedML
+from brownie import network, accounts, config, Contract, FederatedML, interface
 
 
 NON_FORKED_LOCAL_BLOCKCHAIN_ENVIRONMENTS = ["hardhat", "development", "ganache-local"]
@@ -9,9 +9,7 @@ LOCAL_BLOCKCHAIN_ENVIRONMENTS = NON_FORKED_LOCAL_BLOCKCHAIN_ENVIRONMENTS + [
     "eth-kovan-fork",
 ]
 
-contract_to_mock = {
-    "FederatedML": FederatedML,
-}
+contract_to_mock = {"FederatedML": FederatedML}
 
 
 def get_account(index=None, id=None, key=False):
@@ -81,10 +79,13 @@ def fund_with_link(
     contract_address, account=None, link_token=None, amount=100000000000000000
 ):  # 0.1 LINK
     account = account if account else get_account()
-    link_token = link_token if link_token else get_contract("link_token")
-    tx = link_token.transfer(contract_address, amount, {"from": account})
-    # link_token_contract = interface.LinkTokenInterface(link_token.address)
-    # tx = link_token_contract.transfer(contract_address, amount, {"from": account})
+    # link_token = link_token if link_token else get_contract("link_token")
+    # tx = link_token.transfer(contract_address, amount, {"from": account})
+    link_token_contract = interface.LinkTokenInterface(
+        config["networks"][network.show_active()]["link_token"]
+    )
+    tx = link_token_contract.transfer(contract_address, amount, {"from": account})
     tx.wait(1)
+    assert link_token_contract.balanceOf(contract_address) == 100000000000000000
     print("Fund contract!")
     return tx
