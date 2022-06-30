@@ -1,5 +1,3 @@
-from client_ml import WorkerToEvaluate, LocalOutput, run
-from client_web3 import getModels, sendResponse
 from scripts.Client.client_web3 import listen_to_selection_events, register
 
 
