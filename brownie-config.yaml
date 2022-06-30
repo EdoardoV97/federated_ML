@@ -1,11 +1,11 @@
 dependencies:
   - OpenZeppelin/openzeppelin-contracts@4.2.0
-  - smartcontractkit/chainlink-brownie-contracts@1.1.1
+  - smartcontractkit/chainlink-brownie-contracts@0.4.1
 compiler:
   solc:
     remappings:
       - '@openzeppelin=OpenZeppelin/openzeppelin-contracts@4.2.0'
-      - '@chainlink=smartcontractkit/chainlink-brownie-contracts@1.1.1'
+      - '@chainlink=smartcontractkit/chainlink-brownie-contracts@0.4.1'
 
 
 dotenv: .env
@@ -36,5 +36,24 @@ networks:
     keyhash: '0x6e75b569a01ef56d18cab6a8e71e6600d6ce853834d4a5748b720d06f878b3a4'
     api_oracle: '0x58bbdbfb6fca3129b91f0dbe372098123b38b5e9'
     job_id: 'a82495a8fd5b4cb492b17dc0cc31a4fe'
+  mainnet-fork-dev:
+    verify: False
+    vrf_coordinator: '0xf0d54349aDdcf704F77AE15b96510dEA15cb7952'
+    link_token: '0x514910771AF9Ca656af840dff83E8264EcF986CA'
+    fee: 2000000000000000
+    keyhash: '0xAA77729D3466CA35AE8D28B3BBAC7CC36A5031EFDC430821C02BC31A238AF445'
+    api_oracle: ''
+    job_id: ''
+
 wallets:
   from_key: ${PRIVATE_KEY}
+
+# compiler:
+#     solc:
+#         remappings:
+#         - '@openzeppelin=OpenZeppelin/openzeppelin-contracts@4.2.0'
+#         - '@chainlink=smartcontractkit/chainlink-brownie-contracts@0.4.1'
+#         optimizer:
+#             enabled: true
+#             runs: 200
+#         viaIR: true

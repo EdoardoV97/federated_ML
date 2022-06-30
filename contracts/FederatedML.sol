@@ -3,13 +3,14 @@
 pragma solidity ^0.8.13;
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
-import "@chainlink/contracts/src/v0.6/VRFConsumerBase.sol";
-import "@chainlink/contracts/src/v0.6/ChainlinkClient.sol";
-import "@chainlink/contracts/src/v0.6/interfaces/LinkTokenInterface.sol";
+import "@chainlink/contracts/src/v0.8/VRFConsumerBase.sol";
+import "@chainlink/contracts/src/v0.8/ChainlinkClient.sol";
+import "@chainlink/contracts/src/v0.8/interfaces/LinkTokenInterface.sol";
 
 contract FederatedML is Ownable, VRFConsumerBase, ChainlinkClient {
     //
     using EnumerableSet for EnumerableSet.AddressSet;
+    using Chainlink for Chainlink.Request;
 
     enum STATE {
         FUNDING,
@@ -26,7 +27,7 @@ contract FederatedML is Ownable, VRFConsumerBase, ChainlinkClient {
         bool rewardTaken;
         uint16 votesReceived;
         address[] votesGranted;
-        string secretVote;
+        bytes32 secretVote;
         bool alreadySelected;
         string modelHash;
     }
@@ -43,7 +44,6 @@ contract FederatedML is Ownable, VRFConsumerBase, ChainlinkClient {
     uint16 workersInRound;
     uint16 topWorkersInRound;
     uint256 entranceFee;
-    uint256 bounty;
     string initialModelHash;
     uint16 voteMinutes;
     uint16 registrationMinutes;
@@ -63,9 +63,9 @@ contract FederatedML is Ownable, VRFConsumerBase, ChainlinkClient {
     bytes32 lastTimerRequestId;
 
     mapping(address => uint256) public addressToAmountFunded;
-    EnumerableSet.AddressSet public funders;
+    EnumerableSet.AddressSet funders;
     mapping(address => WorkerInfo) public addressToWorkerInfo;
-    EnumerableSet.AddressSet public workers;
+    EnumerableSet.AddressSet workers;
 
     EnumerableSet.AddressSet private residualWorkers;
 
@@ -82,14 +82,14 @@ contract FederatedML is Ownable, VRFConsumerBase, ChainlinkClient {
         uint16 _roundsNumber,
         uint16 _voteMinutes,
         uint16 _registrationMinutes,
-        string _initialModelHash,
+        string memory _initialModelHash,
         address _vrfCoordinator,
         address _linkTokenAddress,
         uint256 _fee,
         bytes32 _keyhash,
         address _oracleApiAddress,
         bytes32 _jobId
-    ) public VRFConsumerBase(_vrfCoordinator, _linkTokenAddress) {
+    ) VRFConsumerBase(_vrfCoordinator, _linkTokenAddress) {
         require(
             _workersNumber % _roundsNumber == 0,
             "The number of workers must be a multiple of the number of rounds!"
@@ -111,7 +111,7 @@ contract FederatedML is Ownable, VRFConsumerBase, ChainlinkClient {
     function fund() public payable {
         require(state == STATE.FUNDING, "Is not possible to further fund!");
         addressToAmountFunded[msg.sender] += msg.value;
-        add(funders, msg.sender);
+        EnumerableSet.add(funders, msg.sender);
     }
 
     function stopFunding() public onlyOwner {
@@ -133,7 +133,7 @@ contract FederatedML is Ownable, VRFConsumerBase, ChainlinkClient {
         uint256 upperBound;
         uint256 bounty = address(this).balance;
         uint256 r1;
-        uint256[topWorkersInRound] coefficients;
+        uint256[] memory coefficients = new uint256[](topWorkersInRound);
         uint256 coefficientsSum;
         for (uint64 j = 0; j < coefficients.length; j++) {
             coefficients[j] = computeRewardCoefficient(j + 1);
@@ -173,8 +173,8 @@ contract FederatedML is Ownable, VRFConsumerBase, ChainlinkClient {
             "You are already registered!"
         ); // It requires that entranceFee is not 0
         addressToWorkerInfo[msg.sender].fee = true;
-        add(workers, msg.sender);
-        if (length(workers) >= workersNumber) {
+        EnumerableSet.add(workers, msg.sender);
+        if (EnumerableSet.length(workers) >= workersNumber) {
             initializeRound();
         }
     }
@@ -185,19 +185,19 @@ contract FederatedML is Ownable, VRFConsumerBase, ChainlinkClient {
             "You were not registered!"
         );
         // Search the round in which there is the worker
-        int64 roundIndex;
+        int256 roundIndex;
         roundIndex = searchRoundOfWorker(msg.sender);
         // Check if the worker was selected in a round
         require(roundIndex != -1, "You have not yet worked in a round!");
         // Check the round is concluded and also the successive
         require(
-            rounds[roundIndex].roundCommitment == workersInRound,
+            rounds[uint256(roundIndex)].roundCommitment == workersInRound,
             "The round is not terminated!"
         );
         require(
-            rounds.length =
-                roundsNumber ||
-                rounds[roundIndex + 1].roundCommitment == workersInRound,
+            rounds.length == roundsNumber ||
+                rounds[uint256(roundIndex) + 1].roundCommitment ==
+                workersInRound,
             "The successive round is not already terminated!"
         );
         require(
@@ -206,48 +206,61 @@ contract FederatedML is Ownable, VRFConsumerBase, ChainlinkClient {
         );
         // Sum the votes considering the successive round
         if (
-            rounds[roundIndex].ranking.length == 0 &&
+            rounds[uint256(roundIndex)].ranking.length == 0 &&
             rounds.length != roundsNumber
         ) {
-            rounds[roundIndex].ranking = computeRanking();
+            rounds[uint256(roundIndex)].ranking = computeRanking(
+                uint256(roundIndex)
+            );
         }
         //Check if last round
         if (rounds.length == roundsNumber) {
             // Uniform distribution
-            msg.sender.transfer(totalRoundReward / workersInRound);
+            payable(msg.sender).transfer(totalRoundReward / workersInRound);
         } else {
             // w.r.t. the ranking give the correct reward
             for (uint256 i = 0; i < topWorkersInRound; i++) {
-                if (msg.sender == rounds[roundIndex].ranking[i]) {
-                    msg.sender.transfer(rewards[i]);
+                if (msg.sender == rounds[uint256(roundIndex)].ranking[i]) {
+                    payable(msg.sender).transfer(rewards[i]);
                 }
             }
         }
         addressToWorkerInfo[msg.sender].rewardTaken = true;
     }
 
-    function searchRoundOfWorker(address _worker) internal returns (int64) {
-        for (uint64 index = 0; index < rounds.length; index++) {
-            if (contains(rounds[index].workers, _worker)) {
-                return index;
+    function searchRoundOfWorker(address _worker) internal returns (int256) {
+        for (uint256 index = 0; index < rounds.length; index++) {
+            if (EnumerableSet.contains(rounds[index].workers, _worker)) {
+                return int256(index);
             }
         }
         return -1;
     }
 
-    function computeRanking(uint64 _roundIndex)
+    function computeRanking(uint256 _roundIndex)
         internal
         returns (address[] memory)
     {
-        address[] memory ranking;
-        uint256[] memory votes;
+        address[] memory ranking = new address[](workersInRound);
+        uint256[] memory votes = new uint256[](workersInRound);
 
-        for (uint256 i = 0; i < length(rounds[_roundIndex].workers); i++) {
-            ranking.push(at(rounds[_roundIndex].workers, i));
-            votes.push(at(rounds[_roundIndex].workers, i).votesReceived);
+        for (
+            uint256 i = 0;
+            i < EnumerableSet.length(rounds[_roundIndex].workers);
+            i++
+        ) {
+            ranking[i] = EnumerableSet.at(rounds[_roundIndex].workers, i);
+            votes[i] = addressToWorkerInfo[
+                EnumerableSet.at(rounds[_roundIndex].workers, i)
+            ].votesReceived;
         }
 
-        (votes, ranking) = quickSort(votes, ranking, 0, votes.length - 1);
+        (votes, ranking) = quickSort(
+            votes,
+            ranking,
+            0,
+            int256(votes.length) - 1
+        );
 
         return ranking;
     }
@@ -257,7 +270,7 @@ contract FederatedML is Ownable, VRFConsumerBase, ChainlinkClient {
         address[] memory _arr2,
         int256 _left,
         int256 _right
-    ) internal returns (uint256[] memory, string[] memory) {
+    ) internal returns (uint256[] memory, address[] memory) {
         int256 i = _left;
         int256 j = _right;
         if (i == j) return (_arr, _arr2);
@@ -278,12 +291,12 @@ contract FederatedML is Ownable, VRFConsumerBase, ChainlinkClient {
                 j--;
             }
         }
-        if (left < j) quickSort(_arr, _arr2, _left, j);
-        if (i < right) quickSort(_arr, _arr2, i, _right);
+        if (_left < j) quickSort(_arr, _arr2, _left, j);
+        if (i < _right) quickSort(_arr, _arr2, i, _right);
         return (_arr, _arr2);
     }
 
-    function unfund() public {
+    function unfund() public payable {
         require(
             state == STATE.FUNDING || state == STATE.TASK_ABORTED,
             "Not possible to unfund in this phase!"
@@ -292,12 +305,12 @@ contract FederatedML is Ownable, VRFConsumerBase, ChainlinkClient {
             addressToAmountFunded[msg.sender] != 0,
             "You have no funded this task!"
         );
-        msg.sender.transfer(addressToAmountFunded[msg.sender]);
+        payable(msg.sender).transfer(addressToAmountFunded[msg.sender]);
         addressToAmountFunded[msg.sender] = 0;
-        remove(funders, msg.sender);
+        EnumerableSet.remove(funders, msg.sender);
     }
 
-    function unregister() public {
+    function unregister() public payable {
         require(
             state == STATE.REGISTERING || state == STATE.TASK_ABORTED,
             "Not possible to unregister in this phase!"
@@ -306,10 +319,10 @@ contract FederatedML is Ownable, VRFConsumerBase, ChainlinkClient {
             addressToWorkerInfo[msg.sender].fee == true,
             "You are not registered to this task!"
         );
-        msg.sender.transfer(entranceFee);
+        payable(msg.sender).transfer(entranceFee);
         addressToWorkerInfo[msg.sender].fee = false;
         // remove from the list of
-        remove(workers, msg.sender);
+        EnumerableSet.remove(workers, msg.sender);
     }
 
     function initializeRound() internal {
@@ -320,26 +333,34 @@ contract FederatedML is Ownable, VRFConsumerBase, ChainlinkClient {
     }
 
     function startRound(uint256 _randomness) internal {
-        EnumerableSet.AddressSet selectedWorkers;
-        address[] selectedWorkersArray;
-        uint256 index = _randomness % length(workers);
+        address[] memory selectedWorkersArray = new address[](workersInRound);
+        uint256 index = _randomness % EnumerableSet.length(workers);
         uint16 counter = 0;
+        uint16 arrayIndex = 0;
         // Given the random numbers use it as indexes to get the workers sequentially
         while (counter < workersInRound) {
-            address w = at(workers, index);
+            address w = EnumerableSet.at(workers, index);
             if (!addressToWorkerInfo[w].alreadySelected) {
-                addressToWorkerInfo[w].already = true;
-                add(selectedWorkers, w);
-                selectedWorkersArray.push(w);
+                addressToWorkerInfo[w].alreadySelected = true;
+
+                selectedWorkersArray[arrayIndex] = w;
+                arrayIndex++;
                 counter++;
             }
-            if (index == length(workers) - 1) {
+            if (index == EnumerableSet.length(workers) - 1) {
                 index = 0;
             } else {
                 index++;
             }
         }
-        rounds.push(Round(selectedWorkers));
+
+        uint256 idx = rounds.length;
+        rounds.push();
+        Round storage tempRound = rounds[idx];
+        for (uint256 k = 0; k < selectedWorkersArray.length; k++) {
+            EnumerableSet.add(tempRound.workers, selectedWorkersArray[k]);
+        }
+
         // Emit an event with the choosen workers for the round
         emit RoundWorkersSelection(selectedWorkersArray);
         // Set the new state
@@ -354,7 +375,7 @@ contract FederatedML is Ownable, VRFConsumerBase, ChainlinkClient {
             address(this),
             this.timerEnded.selector
         );
-        req.addUint("until", now + _voteMinutes * 1 minutes);
+        req.addUint("until", block.timestamp + _voteMinutes * 1 minutes);
         lastTimerRequestId = sendChainlinkRequestTo(oracleApiAddress, req, fee);
     }
 
@@ -385,7 +406,7 @@ contract FederatedML is Ownable, VRFConsumerBase, ChainlinkClient {
     function endRound() internal {
         // Start next round (pay attention to the last!)
         if (rounds.length == roundsNumber) {
-            STATE = STATE.TASK_ENDED;
+            state = STATE.TASK_ENDED;
             return;
         }
         if (rounds.length == roundsNumber - 1) {
@@ -396,26 +417,31 @@ contract FederatedML is Ownable, VRFConsumerBase, ChainlinkClient {
     }
 
     function startLastRound() internal {
-        EnumerableSet.AddressSet selectedWorkers;
-        address[] selectedWorkersArray;
+        address[] memory selectedWorkersArray = new address[](workersInRound);
         uint256 index = 0;
         uint16 counter = 0;
+        uint16 arrayIndex = 0;
         // Given the random numbers use it as indexes to get the workers sequentially
         while (counter < workersInRound) {
-            address w = at(workers, index);
+            address w = EnumerableSet.at(workers, index);
             if (!addressToWorkerInfo[w].alreadySelected) {
-                addressToWorkerInfo[w].already = true;
-                add(selectedWorkers, w);
-                selectedWorkersArray.push(w);
+                addressToWorkerInfo[w].alreadySelected = true;
+                selectedWorkersArray[arrayIndex] = w;
+                arrayIndex++;
                 counter++;
             }
-            if (index == length(workers) - 1) {
+            if (index == EnumerableSet.length(workers) - 1) {
                 index = 0;
             } else {
                 index++;
             }
         }
-        rounds.push(Round(selectedWorkers));
+        uint256 idx = rounds.length;
+        rounds.push();
+        Round storage tempRound = rounds[idx];
+        for (uint256 k = 0; k < selectedWorkersArray.length; k++) {
+            EnumerableSet.add(tempRound.workers, selectedWorkersArray[k]);
+        }
         // Emit an event with the choosen workers for the round
         emit LastRoundWorkersSelection(selectedWorkersArray);
         // Set the new state
@@ -432,34 +458,43 @@ contract FederatedML is Ownable, VRFConsumerBase, ChainlinkClient {
             "There is not a round in progress currently!"
         );
         require(
-            contains(rounds[rounds.length - 1].workers, msg.sender) == true,
+            EnumerableSet.contains(
+                rounds[rounds.length - 1].workers,
+                msg.sender
+            ) == true,
             "You are not a worker of the current round!"
         );
-        string[] previousModelHashes;
+        string[] memory previousModelHashes = new string[](workersInRound);
         if (rounds.length == 0) {
-            return [initialModelHash];
+            string[] memory startingModel = new string[](1);
+            startingModel[0] = initialModelHash;
+            return startingModel;
         }
         for (
             uint256 i = 0;
-            index < length(rounds[rounds.length - 2].workers);
-            index++
+            i < EnumerableSet.length(rounds[rounds.length - 2].workers);
+            i++
         ) {
-            previousModelHashes.push(
-                addressToWorkerInfo[at(rounds[rounds.length - 1].workers, i)]
-                    .modelHash
-            );
+            previousModelHashes[i] = addressToWorkerInfo[
+                EnumerableSet.at(rounds[rounds.length - 1].workers, i)
+            ].modelHash;
         }
         return previousModelHashes;
     }
 
-    function commitWork(uint16[] _votes, string memory _updatedModel) external {
+    function commitWork(uint16[] memory _votes, string memory _updatedModel)
+        external
+    {
         require(
             state == STATE.ROUND_IN_PROGRESS,
             "You cannot commit your work in this phase!"
         );
         // Check if the workers is one of the round and it has not already committed
         require(
-            contains(rounds[rounds.length - 1].workers, msg.sender),
+            EnumerableSet.contains(
+                rounds[rounds.length - 1].workers,
+                msg.sender
+            ),
             "You are not a selected worker of this round!"
         );
         require(
@@ -470,10 +505,14 @@ contract FederatedML is Ownable, VRFConsumerBase, ChainlinkClient {
             // Check votes validity
             require(checkVotesValidity(_votes), "Your votes are not valid!");
             // Save and apply the vote (the parameter is the index of the voted models)
-            addressToWorkerInfo[msg.sender].votesGranted = _votes;
+            // TODO convert indexes to addresses
+            //addressToWorkerInfo[msg.sender].votesGranted = _votes;
             for (uint16 index = 0; index < _votes.length; index++) {
                 addressToWorkerInfo[
-                    at(rounds[rounds.length - 1].workers, _votes[index])
+                    EnumerableSet.at(
+                        rounds[rounds.length - 1].workers,
+                        _votes[index]
+                    )
                 ].votesReceived++;
             }
         }
@@ -487,8 +526,10 @@ contract FederatedML is Ownable, VRFConsumerBase, ChainlinkClient {
         }
     }
 
-    function checkVotesValidity(uint16[] _votes) internal returns (bool) {
-        mapping(uint16 => bool) modelsVotedIndexes;
+    function checkVotesValidity(uint16[] memory _votes)
+        internal
+        returns (bool)
+    {
         // Check correct number of votes
         if (_votes.length == topWorkersInRound) {
             for (uint16 index = 0; index < _votes.length; index++) {
@@ -496,11 +537,10 @@ contract FederatedML is Ownable, VRFConsumerBase, ChainlinkClient {
                 if (_votes[index] < 0 && _votes[index] >= workersInRound) {
                     return false;
                 }
-                // Check no double votes
-                if (!modelsVotedIndexes[_votes[index]]) {
-                    modelsVotedIndexes[_votes[index]] = true;
-                } else {
-                    return false;
+                for (uint16 k = index; k < _votes.length; k++) {
+                    if (_votes[index] == _votes[k]) {
+                        return false;
+                    }
                 }
             }
         } else {
@@ -509,7 +549,7 @@ contract FederatedML is Ownable, VRFConsumerBase, ChainlinkClient {
         return true;
     }
 
-    function commitSecretVote(string _secretVote) external {
+    function commitSecretVote(bytes32 _secretVote) external {
         // Check if it is the last round
         require(
             state == STATE.LAST_ROUND_IN_PROGRESS,
@@ -517,11 +557,14 @@ contract FederatedML is Ownable, VRFConsumerBase, ChainlinkClient {
         );
         // Check if the workers is one of the round and it has not already committed
         require(
-            contains(rounds[rounds.length - 1].workers, msg.sender),
+            EnumerableSet.contains(
+                rounds[rounds.length - 1].workers,
+                msg.sender
+            ),
             "You are not a selected worker of this round!"
         );
         require(
-            bytes(addressToWorkerInfo[msg.sender].secretVote).length == 0,
+            addressToWorkerInfo[msg.sender].secretVote == 0,
             "You have alredy submitted your work!"
         );
         // Save the secret vote
@@ -537,7 +580,9 @@ contract FederatedML is Ownable, VRFConsumerBase, ChainlinkClient {
         }
     }
 
-    function discloseSecretVote(uint16[] _votes, string memory _salt) external {
+    function discloseSecretVote(uint16[] memory _votes, string memory _salt)
+        external
+    {
         // Check disclosure phase
         require(
             state == STATE.LAST_ROUND_DISCLOSING,
@@ -545,11 +590,14 @@ contract FederatedML is Ownable, VRFConsumerBase, ChainlinkClient {
         );
         // Check if the workers is one of the last round and it has committed a secret vote
         require(
-            contains(rounds[rounds.length - 1].workers, msg.sender),
+            EnumerableSet.contains(
+                rounds[rounds.length - 1].workers,
+                msg.sender
+            ),
             "You are not a selected worker of this round!"
         );
         require(
-            bytes(addressToWorkerInfo[msg.sender].secretVote).length != 0,
+            addressToWorkerInfo[msg.sender].secretVote != 0,
             "You have not submitted your work in time!"
         );
         // Check the validity of the vote
@@ -558,11 +606,16 @@ contract FederatedML is Ownable, VRFConsumerBase, ChainlinkClient {
             "Your secret votes are not valid!"
         );
         // Save and apply the vote (the parameter is the index of the voted models)
-        addressToWorkerInfo[msg.sender].votesGranted = _votes;
+        // TODO repre...
+        //addressToWorkerInfo[msg.sender].votesGranted = _votes;
         for (uint16 index = 0; index < _votes.length; index++) {
-            addressToWorkerInfo[
-                at(rounds[rounds.length - 1].workers, _votes[index])
-            ].votesReceived++;
+            // TODO fix the votes indexes representation...
+            // addressToWorkerInfo[
+            //     EnumerableSet.at(
+            //         rounds[rounds.length - 1].workers,
+            //         _votes[index]
+            //     )
+            // ].votesReceived++;
         }
         // If it is the last disclosure, end the task
         if (rounds[rounds.length - 1].roundCommitment == workersInRound) {
@@ -571,10 +624,10 @@ contract FederatedML is Ownable, VRFConsumerBase, ChainlinkClient {
         }
     }
 
-    function checkSecretVoteValidity(uint16[] _votes, string memory _salt)
-        internal
-        returns (bool)
-    {
+    function checkSecretVoteValidity(
+        uint16[] memory _votes,
+        string memory _salt
+    ) internal returns (bool) {
         if (
             keccak256(abi.encodePacked(_votes, _salt)) ==
             addressToWorkerInfo[msg.sender].secretVote &&
