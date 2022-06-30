@@ -1,3 +1,4 @@
+import requests
 from scripts.Client.client_ml import LocalOutput, WorkerToEvaluate, run_learning
 from web3 import Web3
 import json
