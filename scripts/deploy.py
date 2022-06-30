@@ -1,5 +1,5 @@
 from brownie import accounts, config, FederatedML, network
-from scripts.helpful_scripts import get_account
+from scripts.helpful_scripts import fund_with_link, get_account
 
 TASK_SCRIPT = ""
 NUM_OF_WORKERS = 6
@@ -36,6 +36,12 @@ def deploy_FederatedML():
 
     # Fund the bounty
     federatedML_contract.fund({"from": account, "value": 1})  # 1 ETH
+
+    # Fund with link
+    tx = fund_with_link(
+        federatedML_contract.address, account=get_account()
+    )  # attenzione
+    tx.wait(1)
 
     # Stop funding phase
     federatedML_contract.stopFunding({"from": account})
