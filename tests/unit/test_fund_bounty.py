@@ -1,5 +1,5 @@
 import unittest
-from brownie import accounts, config, FederatedML, network
+from brownie import config, network
 from scripts.deploy import deploy_FederatedML
 from scripts.helpful_scripts import fund_with_link, get_account
 
@@ -21,11 +21,15 @@ def test_fund_FederatedML():
     tx.wait(1)
 
     # Fund the bounty
-    fund_quantity = 1  # 1 Wei
-    tx = federatedML_contract.fund({"from": account, "value": fund_quantity})  # 1 ETH
+    fund_quantity = 1 * 10 ** 18  # 1 ETH
+    tx = federatedML_contract.fund({"from": account, "value": fund_quantity})
     tx.wait(1)
     assert fund_quantity == federatedML_contract.balance()
 
     # Stop funding phase
     tx = federatedML_contract.stopFunding({"from": account})
     tx.wait(1)
+
+
+# def test_unfund():
+# TODO try to unfund the SC and see if we receive our ETH back

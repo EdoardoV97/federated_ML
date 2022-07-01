@@ -5,33 +5,6 @@ from scripts.deploy import deploy_FederatedML
 
 INITIAL_MODEL_HASH = None  # TODO generate an initial model
 
-
-# def deploy():
-#     vrf_coordinator = config["networks"][network.show_active()]["vrf_coordinator"]
-#     link_token = config["networks"][network.show_active()]["link_token"]
-#     oracle_fee = config["networks"][network.show_active()]["fee"]
-#     keyhash = config["networks"][network.show_active()]["keyhash"]
-#     api_oracle = config["networks"][network.show_active()]["api_oracle"]
-#     job_id = config["networks"][network.show_active()]["job_id"]
-
-#     account = get_account()
-
-#     # Deploy
-#     federatedML_contract = FederatedML.deploy(
-#         INITIAL_MODEL_HASH,
-#         vrf_coordinator,
-#         link_token,
-#         oracle_fee,
-#         keyhash,
-#         api_oracle,
-#         job_id,
-#         {"from": account},
-#     )
-#     print(f"Contract deployed to: {federatedML_contract.address}")
-
-#     return federatedML_contract
-
-
 # @unittest.skip("Passed")
 def test_register():
     federatedML_contract = deploy_FederatedML()
@@ -68,8 +41,11 @@ def test_register():
         print(f"Worker{w} registered!")
         tx.wait(1)
 
+    # TODO check in the map if the workers are present
     # info = federatedML_contract.addressToWorkerInfo(1)
-    # print(info)
+    # print(info)ù
+    # TODO check if a round has been created and the worker selected
 
 
 # def test_unregister():
+# TODO try to register and then unregister a worker
