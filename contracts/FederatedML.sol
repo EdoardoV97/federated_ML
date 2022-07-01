@@ -38,21 +38,21 @@ contract FederatedML is Ownable, VRFConsumerBase, ChainlinkClient {
     }
 
     STATE public state = STATE.FUNDING;
-    uint256 workersNumber;
-    uint256 roundsNumber;
-    uint256 workersInRound;
-    uint256 topWorkersInRound;
+    uint256 public workersNumber;
+    uint256 public roundsNumber;
+    uint256 public workersInRound;
+    uint256 public topWorkersInRound;
     uint256 public entranceFee;
-    string initialModelHash;
-    uint16 voteMinutes;
-    uint16 registrationMinutes;
-    address coordinatorSC;
-    address linkTokenAddress;
+    string public initialModelHash;
+    uint16 public voteMinutes;
+    uint16 public registrationMinutes;
+    address public coordinatorSC;
+    address public linkTokenAddress;
     // To keep track of the rounds
     Round[] rounds;
     // To keep track of the rewards in a round
-    uint256[] rewards;
-    uint256 totalRoundReward;
+    uint256[] public rewards;
+    uint256 public totalRoundReward;
     // Variables for the vrf_coordinator
     uint256 public fee;
     bytes32 public keyhash;
