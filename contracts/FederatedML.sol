@@ -38,10 +38,10 @@ contract FederatedML is Ownable, VRFConsumerBase, ChainlinkClient {
     }
 
     STATE public state = STATE.FUNDING;
-    uint16 workersNumber;
-    uint16 roundsNumber;
-    uint16 workersInRound;
-    uint16 topWorkersInRound;
+    uint256 workersNumber;
+    uint256 roundsNumber;
+    uint256 workersInRound;
+    uint256 topWorkersInRound;
     uint256 entranceFee;
     string initialModelHash;
     uint16 voteMinutes;
@@ -135,24 +135,26 @@ contract FederatedML is Ownable, VRFConsumerBase, ChainlinkClient {
         uint256 r1;
         uint256[] memory coefficients = new uint256[](topWorkersInRound);
         uint256 coefficientsSum;
-        for (uint64 j = 0; j < coefficients.length; j++) {
+        for (uint256 j = 0; j < coefficients.length; j++) {
             coefficients[j] = computeRewardCoefficient(j + 1);
             coefficientsSum += coefficients[j];
         }
         r1 =
-            bounty /
+            (bounty * 10**18 * 10**18) /
             (coefficientsSum *
-                roundsNumber -
-                (workersNumber / ((workersInRound / 2) + 2)));
+                roundsNumber *
+                10**18 -
+                ((workersNumber * 10**18 * 10**18) /
+                    (((topWorkersInRound * 10**18) / 2) + 2 * 10**18)));
+
         upperBound =
-            ((workersInRound - 2 * topWorkersInRound + 1) /
-                (workersInRound - 1)) *
-            r1;
-        lowerBound = r1 / ((workersInRound / 2) + 2);
-        require(
-            lowerBound <= upperBound,
-            "Is not possible to compute a valid fee in the current setting!"
-        );
+            ((((workersInRound - 2 * topWorkersInRound + 1) * 10**18) /
+                (workersInRound - 1)) * r1) /
+            10**18;
+
+        lowerBound =
+            (r1 * 10**18) /
+            (((topWorkersInRound * 10**18) / 2) + 2 * 10**18);
         entranceFee = lowerBound;
         for (uint64 j = 0; j < coefficients.length; j++) {
             rewards.push(coefficients[j] * r1);
@@ -161,7 +163,7 @@ contract FederatedML is Ownable, VRFConsumerBase, ChainlinkClient {
         return;
     }
 
-    function computeRewardCoefficient(uint64 _j) internal returns (uint256) {
+    function computeRewardCoefficient(uint256 _j) internal returns (uint256) {
         return (workersInRound - 2 * _j + 1) / (workersInRound - 1);
     }
 
