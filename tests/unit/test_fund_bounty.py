@@ -36,8 +36,9 @@ def test_fund_FederatedML():
     tx.wait(1)
 
     # Fund the bounty
-    tx = federatedML_contract.fund({"from": account, "value": 1})  # 1 ETH
+    tx = federatedML_contract.fund({"from": account, "value": 1 * 10 ** 18})  # 1 ETH
     tx.wait(1)
+    assert 1 * 10 ** 18 == federatedML_contract.balance()
 
     # Stop funding phase
     tx = federatedML_contract.stopFunding({"from": account})
