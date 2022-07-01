@@ -5,7 +5,7 @@ from scripts.helpful_scripts import fund_with_link, get_account
 INITIAL_MODEL_HASH = None  # TODO generate an initial model
 
 
-# @unittest.skip("Passed")
+@unittest.skip("Passed")
 def test_fund_FederatedML():
     vrf_coordinator = config["networks"][network.show_active()]["vrf_coordinator"]
     link_token = config["networks"][network.show_active()]["link_token"]

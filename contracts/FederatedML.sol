@@ -42,7 +42,7 @@ contract FederatedML is Ownable, VRFConsumerBase, ChainlinkClient {
     uint256 roundsNumber;
     uint256 workersInRound;
     uint256 topWorkersInRound;
-    uint256 entranceFee;
+    uint256 public entranceFee;
     string initialModelHash;
     uint16 voteMinutes;
     uint16 registrationMinutes;
@@ -155,6 +155,15 @@ contract FederatedML is Ownable, VRFConsumerBase, ChainlinkClient {
         lowerBound =
             (r1 * 10**18) /
             (((topWorkersInRound * 10**18) / 2) + 2 * 10**18);
+
+        require(
+            lowerBound <= upperBound,
+            "Is not possible to compute a valid fee in the current setting!"
+        );
+        r1 = r1 / 10**18;
+        upperBound = upperBound / 10**18;
+        lowerBound = lowerBound / 10**18;
+
         entranceFee = lowerBound;
         for (uint64 j = 0; j < coefficients.length; j++) {
             rewards.push(coefficients[j] * r1);

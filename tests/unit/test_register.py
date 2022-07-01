@@ -4,7 +4,7 @@ from scripts.helpful_scripts import fund_with_link, get_account
 
 INITIAL_MODEL_HASH = None  # TODO generate an initial model
 
-@unittest.skip("Passed")
+# @unittest.skip("Passed")
 def test_register():
     vrf_coordinator = config["networks"][network.show_active()]["vrf_coordinator"]
     link_token = config["networks"][network.show_active()]["link_token"]
@@ -37,9 +37,10 @@ def test_register():
     tx.wait(1)
 
     # Fund the bounty
-    tx = federatedML_contract.fund({"from": account, "value": 1 * 10 ** 18})  # 1 ETH
+    fund_quantity = 1 * 10 ** 18  # 1 Wei
+    tx = federatedML_contract.fund({"from": account, "value": fund_quantity})  # 1 ETH
     tx.wait(1)
-    assert 1 * 10 ** 18 == federatedML_contract.balance()
+    assert fund_quantity == federatedML_contract.balance()
 
     # Stop funding phase
     tx = federatedML_contract.stopFunding({"from": account})
@@ -47,5 +48,4 @@ def test_register():
 
     # Get the entranceFee
     fee = federatedML_contract.entranceFee()
-    tx.wait(1)
     print(fee)
