@@ -31,17 +31,21 @@ def deploy_FederatedML():
     )
     print(f"Contract deployed to: {federatedML_contract.address}")
 
-    # # Fund the bounty
-    # federatedML_contract.fund({"from": account, "value": 1})  # 1 ETH
+    link_amount = oracle_fee * 10  # 0.1 * 10 = 1 LINK
 
     # Fund with link
     tx = fund_with_link(
-        federatedML_contract.address, account=get_account(key=True)
+        federatedML_contract.address, get_account(key=True), amount=link_amount
     )  # attenzione
     tx.wait(1)
 
+    # Fund the bounty
+    tx = federatedML_contract.fund({"from": account, "value": 1})  # 1 ETH
+    tx.wait(1)
+
     # Stop funding phase
-    federatedML_contract.stopFunding({"from": account})
+    tx = federatedML_contract.stopFunding({"from": account})
+    tx.wait(1)
 
 
 def main():
