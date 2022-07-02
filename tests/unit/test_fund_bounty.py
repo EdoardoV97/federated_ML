@@ -5,7 +5,7 @@ from scripts.helpful_scripts import fund_with_link, get_account
 
 
 @unittest.skip("Passed")
-def test_fund_FederatedML():
+def test_fund():
     account = get_account()
     federatedML_contract = deploy_FederatedML()
     oracle_fee = config["networks"][network.show_active()]["fee"]
