@@ -218,14 +218,14 @@ contract FederatedML is Ownable, VRFConsumerBase, ChainlinkClient {
         // Sum the votes considering the successive round
         if (
             rounds[uint256(roundIndex)].ranking.length == 0 &&
-            rounds.length != roundsNumber
+            uint256(roundIndex) != roundsNumber - 1
         ) {
             rounds[uint256(roundIndex)].ranking = computeRanking(
                 uint256(roundIndex)
             );
         }
         //Check if last round
-        if (rounds.length == roundsNumber) {
+        if (uint256(roundIndex) == roundsNumber - 1) {
             // Uniform distribution
             payable(msg.sender).transfer(totalRoundReward / workersInRound);
         } else {
@@ -631,11 +631,12 @@ contract FederatedML is Ownable, VRFConsumerBase, ChainlinkClient {
         for (uint16 index = 0; index < _votes.length; index++) {
             addressToWorkerInfo[
                 EnumerableSet.at(
-                    rounds[rounds.length - 1].workers,
+                    rounds[rounds.length - 2].workers,
                     _votes[index]
                 )
             ].votesReceived++;
         }
+        rounds[rounds.length - 1].roundCommitment++;
         // If it is the last disclosure, end the task
         if (rounds[rounds.length - 1].roundCommitment == workersInRound) {
             state = STATE.TASK_ENDED;
@@ -686,5 +687,14 @@ contract FederatedML is Ownable, VRFConsumerBase, ChainlinkClient {
             temp[i] = EnumerableSet.at(rounds[index].workers, i);
         }
         return temp;
+    }
+
+    function getRankingInRound(uint256 index)
+        public
+        view
+        returns (address[] memory)
+    {
+        require(index < rounds.length, "Index out of bound!");
+        return rounds[index].ranking;
     }
 }
