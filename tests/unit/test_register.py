@@ -4,7 +4,7 @@ from scripts.helpful_scripts import fund_with_link, get_account
 from scripts.deploy import deploy_FederatedML
 
 
-@unittest.skip("Passed")
+# @unittest.skip("Passed")
 def test_register():
     federatedML_contract = deploy_FederatedML()
     account = get_account()
@@ -40,14 +40,21 @@ def test_register():
         print(f"Worker{w} registered!")
         tx.wait(1)
 
+    # state = federatedML_contract.state()
+    # print(f"Current state is: {state}")
+
     # Check in the map if all registered workers are present
     for w in range(1, 7):
         info = federatedML_contract.addressToWorkerInfo(get_account(w).address)
         assert info[0] == True
 
     # TODO check if a round has been created and the worker selected
-    state = federatedML_contract.state()
-    print(state)
+    # tx = federatedML_contract.register({"from": get_account(8), "value": worker_fee})
+    # tx.wait(1)
+    # workers = federatedML_contract.getWorkersInRound(0)
+    # print(workers)
+    # state = federatedML_contract.state()
+    # print(f"Current state is: {state}")
 
 
 @unittest.skip("Passed")

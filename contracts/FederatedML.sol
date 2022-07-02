@@ -665,4 +665,19 @@ contract FederatedML is Ownable, VRFConsumerBase, ChainlinkClient {
         require(_randomness > 0, "random-not-found");
         startRound(_randomness);
     }
+
+    function getWorkersInRound(uint256 index)
+        public
+        view
+        returns (address[] memory)
+    {
+        require(index < rounds.length, "Index out of bound!");
+        address[] memory temp = new address[](
+            EnumerableSet.length(rounds[index].workers)
+        );
+        for (uint256 i = 0; i < temp.length; i++) {
+            temp[i] = EnumerableSet.at(rounds[index].workers, i);
+        }
+        return temp;
+    }
 }
