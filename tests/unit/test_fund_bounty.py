@@ -13,9 +13,7 @@ def test_fund():
     link_amount = oracle_fee * 10  # 0.1 * 10 = 1 LINK
 
     # Fund with link
-    tx = fund_with_link(
-        federatedML_contract.address, get_account(key=True), amount=link_amount
-    )  # attenzione
+    tx = fund_with_link(federatedML_contract.address, amount=link_amount)  # attenzione
     tx.wait(1)
 
     # Fund the bounty

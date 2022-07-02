@@ -1,4 +1,13 @@
-from brownie import network, accounts, config, Contract, FederatedML, interface
+from brownie import (
+    network,
+    accounts,
+    config,
+    Contract,
+    FederatedML,
+    interface,
+    VRFCoordinatorMock,
+    LinkToken,
+)
 
 
 NON_FORKED_LOCAL_BLOCKCHAIN_ENVIRONMENTS = ["hardhat", "development", "ganache-local"]
@@ -9,7 +18,11 @@ LOCAL_BLOCKCHAIN_ENVIRONMENTS = NON_FORKED_LOCAL_BLOCKCHAIN_ENVIRONMENTS + [
     "eth-kovan-fork",
 ]
 
-contract_to_mock = {"FederatedML": FederatedML}
+contract_to_mock = {
+    "FederatedML": FederatedML,
+    "vrf_coordinator": VRFCoordinatorMock,
+    "link_token": LinkToken,
+}
 
 
 def get_account(index=None, id=None, key=False):
@@ -71,19 +84,27 @@ def get_verify_status():
     return verify
 
 
-def deploy_mocks():
-    pass
+DECIMALS = 8
+INITIAL_VALUE = 200000000000
+
+
+def deploy_mocks(decimals=DECIMALS, initial_value=INITIAL_VALUE):
+    account = get_account()
+    link_token = LinkToken.deploy({"from": account})
+    VRFCoordinatorMock.deploy(link_token.address, {"from": account})
+    print("Deployed!")
 
 
 def fund_with_link(
     contract_address, account=None, link_token=None, amount=100000000000000000
 ):  # 0.1 LINK
     account = account if account else get_account()
-    link_token_contract = interface.LinkTokenInterface(
-        config["networks"][network.show_active()]["link_token"]
-    )
-    tx = link_token_contract.transfer(contract_address, amount, {"from": account})
+    # link_token_contract = interface.LinkTokenInterface(
+    #     config["networks"][network.show_active()]["link_token"]
+    # )
+    link_token = link_token if link_token else get_contract("link_token")
+    tx = link_token.transfer(contract_address, amount, {"from": account})
     tx.wait(1)
-    assert link_token_contract.balanceOf(contract_address) == amount
+    assert link_token.balanceOf(contract_address) == amount
     print("Funded contract with LINK!")
     return tx

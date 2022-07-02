@@ -666,6 +666,13 @@ contract FederatedML is Ownable, VRFConsumerBase, ChainlinkClient {
         startRound(_randomness);
     }
 
+    // Fake function to be deleted after testing locally
+    function fulfillRandomnessTesting(uint256 _randomness) public {
+        require(state == STATE.ROUND_PREPARATION, "You aren't there yet!");
+        require(_randomness > 0, "random-not-found");
+        startRound(_randomness);
+    }
+
     function getWorkersInRound(uint256 index)
         public
         view
