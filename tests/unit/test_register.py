@@ -40,12 +40,17 @@ def test_register():
         print(f"Worker{w} registered!")
         tx.wait(1)
 
-    # TODO check in the map if the workers are present
-    # info = federatedML_contract.addressToWorkerInfo(1)
-    # print(info)
+    # Check in the map if all registered workers are present
+    for w in range(1, 7):
+        info = federatedML_contract.addressToWorkerInfo(get_account(w).address)
+        assert info[0] == True
+
     # TODO check if a round has been created and the worker selected
+    state = federatedML_contract.state()
+    print(state)
 
 
+@unittest.skip("Passed")
 def test_unregister():
     federatedML_contract = deploy_FederatedML()
     account = get_account()
@@ -76,9 +81,13 @@ def test_unregister():
     # Register the worker
     tx = federatedML_contract.register({"from": account, "value": worker_fee})
     print("Worker registered!")
+    info = federatedML_contract.addressToWorkerInfo(get_account(0).address)
+    assert info[0] == True
     tx.wait(1)
 
     # Deregister the worker
     tx = federatedML_contract.unregister()
     print("Worker Deregistered!")
+    info = federatedML_contract.addressToWorkerInfo(get_account(0).address)
+    assert info[0] == False
     tx.wait(1)
