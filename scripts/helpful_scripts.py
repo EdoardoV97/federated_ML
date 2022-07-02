@@ -85,5 +85,5 @@ def fund_with_link(
     tx = link_token_contract.transfer(contract_address, amount, {"from": account})
     tx.wait(1)
     assert link_token_contract.balanceOf(contract_address) == amount
-    print("Fund contract!")
+    print("Funded contract with LINK!")
     return tx

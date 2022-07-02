@@ -3,9 +3,8 @@ from brownie import config, network
 from scripts.helpful_scripts import fund_with_link, get_account
 from scripts.deploy import deploy_FederatedML
 
-INITIAL_MODEL_HASH = None  # TODO generate an initial model
 
-# @unittest.skip("Passed")
+@unittest.skip("Passed")
 def test_register():
     federatedML_contract = deploy_FederatedML()
     account = get_account()

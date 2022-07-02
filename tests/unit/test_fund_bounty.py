@@ -3,8 +3,6 @@ from brownie import config, network
 from scripts.deploy import deploy_FederatedML
 from scripts.helpful_scripts import fund_with_link, get_account
 
-INITIAL_MODEL_HASH = None  # TODO generate an initial model
-
 
 @unittest.skip("Passed")
 def test_fund_FederatedML():
@@ -31,5 +29,18 @@ def test_fund_FederatedML():
     tx.wait(1)
 
 
-# def test_unfund():
-# TODO try to unfund the SC and see if we receive our ETH back
+@unittest.skip("Passed")
+def test_unfund():
+    account = get_account()
+    federatedML_contract = deploy_FederatedML()
+
+    # Fund the bounty
+    fund_quantity = 1 * 10 ** 18  # 1 ETH
+    tx = federatedML_contract.fund({"from": account, "value": fund_quantity})
+    tx.wait(1)
+    assert fund_quantity == federatedML_contract.balance()
+
+    # Unfund
+    tx = federatedML_contract.unfund()
+    tx.wait(1)
+    assert federatedML_contract.balance() == 0
