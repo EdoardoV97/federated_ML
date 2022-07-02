@@ -1,12 +1,11 @@
 from tabnanny import check
-import time
 import unittest
 from brownie import config, network
 from scripts.helpful_scripts import fund_with_link, get_account, get_contract
 from scripts.deploy import deploy_FederatedML
 
 
-# @unittest.skip("Passed")
+@unittest.skip("Passed")
 def test_register():
     federatedML_contract = deploy_FederatedML()
     account = get_account()
@@ -50,7 +49,7 @@ def test_register():
         info = federatedML_contract.addressToWorkerInfo(get_account(w).address)
         assert info[0] == True
 
-    # TODO check if a round has been created and the worker selected
+    # Check if a round has been created and the worker selected
     tx = federatedML_contract.fulfillRandomnessTesting(1)
     tx.wait(1)
     assert federatedML_contract.state() == 5  # Round in progress state check

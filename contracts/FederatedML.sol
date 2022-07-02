@@ -462,15 +462,15 @@ contract FederatedML is Ownable, VRFConsumerBase, ChainlinkClient {
                 state == STATE.LAST_ROUND_IN_PROGRESS,
             "There is not a round in progress currently!"
         );
-        require(
-            EnumerableSet.contains(
-                rounds[rounds.length - 1].workers,
-                msg.sender
-            ) == true,
-            "You are not a worker of the current round!"
-        );
+        // require(
+        //     EnumerableSet.contains(
+        //         rounds[rounds.length - 1].workers,
+        //         msg.sender
+        //     ) == true,
+        //     "You are not a worker of the current round!"
+        // );
         string[] memory previousModelHashes = new string[](workersInRound);
-        if (rounds.length == 0) {
+        if (rounds.length == 1) {
             string[] memory startingModel = new string[](1);
             startingModel[0] = initialModelHash;
             return startingModel;
@@ -516,7 +516,7 @@ contract FederatedML is Ownable, VRFConsumerBase, ChainlinkClient {
             for (uint16 index = 0; index < _votes.length; index++) {
                 addressToWorkerInfo[
                     EnumerableSet.at(
-                        rounds[rounds.length - 1].workers,
+                        rounds[rounds.length - 2].workers,
                         _votes[index]
                     )
                 ].votesReceived++;
@@ -543,7 +543,7 @@ contract FederatedML is Ownable, VRFConsumerBase, ChainlinkClient {
                 if (_votes[index] < 0 && _votes[index] >= workersInRound) {
                     return false;
                 }
-                for (uint16 k = index; k < _votes.length; k++) {
+                for (uint16 k = index + 1; k < _votes.length; k++) {
                     if (_votes[index] == _votes[k]) {
                         return false;
                     }
