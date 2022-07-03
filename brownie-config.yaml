@@ -64,4 +64,10 @@ networks:
     job_id: ''
 
 wallets:
-  from_key: ${PRIVATE_KEY}
+  from_key1: ${PRIVATE_KEY1}
+  from_key2: ${PRIVATE_KEY2}
+  from_key3: ${PRIVATE_KEY3}
+  from_key4: ${PRIVATE_KEY4}
+  from_key5: ${PRIVATE_KEY5}
+  from_key6: ${PRIVATE_KEY6}
+

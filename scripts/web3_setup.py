@@ -21,7 +21,7 @@ def main():
 
     # Fund the bounty
     assert federatedML_contract.state() == 0  # Funding state check
-    fund_quantity = 1 * 10 ** 18  # 1 Wei
+    fund_quantity = 1  # * 10 ** 18  # 1 Wei
     tx = federatedML_contract.fund({"from": account, "value": fund_quantity})  # 1 ETH
     tx.wait(1)
     assert fund_quantity == federatedML_contract.balance()
@@ -39,10 +39,10 @@ def main():
     for w in range(1, 7):
         assert federatedML_contract.state() == 1  # Registering state check
         tx = federatedML_contract.register(
-            {"from": get_account(w), "value": worker_fee}
+            {"from": get_account(key=True, key_index=w), "value": worker_fee}
         )
-        print(f"Worker{w} registered!")
         tx.wait(1)
+        print(f"Worker{w} registered!")
 
     # Start the round
     tx = federatedML_contract.fulfillRandomnessTesting(1)
