@@ -1,14 +1,15 @@
 import requests
-from scripts.Client.client_ml import LocalOutput, WorkerToEvaluate, run_learning
+from client_ml import LocalOutput, WorkerToEvaluate, run_learning
 from web3 import Web3
 import json
 import asyncio
 
-workersToEvaluate: list(WorkerToEvaluate) = None
+workersToEvaluate: list
 localOutput: LocalOutput = None
 
-CHOSEN_NETWORK = "ganache-local"
-WORKER_INDEX = 1
+CHOSEN_NETWORK = "kovan"
+CHOSEN_NETWORK_ID = 42
+WORKER_INDEX = 5
 
 with open("scripts/Client/client-config.json", "r") as file:
     json_file = json.load(file)
@@ -21,11 +22,18 @@ with open("scripts/Client/client-config.json", "r") as file:
 def get_contract_address():
     with open("build/deployments/map.json", "r") as file:
         json_file = json.load(file)
-        return json_file[str(5777)]["FederatedML"][0]
+        return json_file[str(CHOSEN_NETWORK_ID)]["FederatedML"][0]
 
 
 def get_ABI(contract_address):
-    with open("build/deployments/5777/" + contract_address + ".json", "r") as file:
+    with open(
+        "build/deployments/"
+        + str(CHOSEN_NETWORK_ID)
+        + "/"
+        + contract_address
+        + ".json",
+        "r",
+    ) as file:
         json_file = json.load(file)
         return json_file["abi"]
 
@@ -91,6 +99,7 @@ def register():
 
     federated_ML = w3.eth.contract(contract_address, abi=get_ABI(contract_address))
     fee = federated_ML.functions.entranceFee().call()
+    print(f"Registration fee is: {fee}")
     transaction = federated_ML.functions.register().buildTransaction(
         {
             "chainId": chain_id,

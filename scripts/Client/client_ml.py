@@ -1,5 +1,3 @@
-from sklearn.utils import shuffle
-from matplotlib import pyplot
 import numpy as np
 from tensorflow.keras.datasets import mnist
 from tensorflow.keras.utils import to_categorical
@@ -11,12 +9,12 @@ from tensorflow.keras.layers import Flatten
 from tensorflow.keras.optimizers import SGD
 
 # Constants
-TOTAL_WORKERS = 100
-ROUNDS = 10
-WORKERS_IN_ROUND = TOTAL_WORKERS // ROUNDS  # This is K'
-BEST_K = (WORKERS_IN_ROUND + 1) // 2
+TOTAL_WORKERS = 6
+ROUNDS = 3
+WORKERS_IN_ROUND = 2
+BEST_K = 1  # This is K'
 
-LOCAL_EPOCHS = 5
+LOCAL_EPOCHS = 1
 LOCAL_BATCH_SIZE = 64
 
 # CLASSES
