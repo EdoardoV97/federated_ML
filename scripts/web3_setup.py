@@ -1,5 +1,4 @@
-# This script is needed to deploy the SC with web3, so to be able to retrieve the SC in the deployments folder
-# If we use brownie, we cannot get the SC in the development network
+# This script is needed to deploy the SC to testnets or ganacheUI
 
 
 import time
@@ -44,11 +43,12 @@ def main():
         tx.wait(1)
         print(f"Worker{w} registered!")
 
+    print("SETUP finish correctly!")
     # Start the round
-    tx = federatedML_contract.fulfillRandomnessTesting(1)
-    tx.wait(1)
-    time.sleep(5)
-    assert federatedML_contract.state() == 5  # Round in progress state check
+    # tx = federatedML_contract.fulfillRandomnessTesting(1)
+    # tx.wait(1)
+    # time.sleep(5)
+    # assert federatedML_contract.state() == 5  # Round in progress state check
 
 
 if __name__ == "__main__":

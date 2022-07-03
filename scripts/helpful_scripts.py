@@ -27,7 +27,7 @@ contract_to_mock = {
 
 def get_account(index=None, id=None, key=False, key_index=None):
     if key:
-        return accounts.add(config["wallets"]["from_key" + key_index])
+        return accounts.add(config["wallets"]["from_key" + str(key_index)])
     if index:
         return accounts[index]
     if network.show_active() in LOCAL_BLOCKCHAIN_ENVIRONMENTS:
