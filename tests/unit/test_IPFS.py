@@ -19,10 +19,13 @@ def test_store_to_IPFS():
 
 
 # Test to retrieve a model
-@unittest.skip("Passed")
-def test_download_from_IPFS():
+def main():
     params = {"arg": TEST_HASH}
     response = requests.post("http://127.0.0.1:5001/api/v0/get", params=params)
     print(response)
-    with open("modelFromIPFS.h5", "wb") as f:
+    with open("./scripts/Client/models/modelFromIPFS.h5", "wb") as f:
         f.write(response.content)
+
+
+if __name__ == "__main__":
+    main()

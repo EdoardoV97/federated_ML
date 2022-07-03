@@ -9,8 +9,6 @@ with open("scripts/Client/client-config.json", "r") as file:
     json_file = json.load(file)
     w3 = Web3(Web3.HTTPProvider(json_file[CHOSEN_NETWORK]["provider"]))
     chain_id = int(json_file[CHOSEN_NETWORK]["chain-id"])
-    my_address = json_file[CHOSEN_NETWORK]["address"]
-    private_key = json_file[CHOSEN_NETWORK]["private-key"]
 
 
 def get_contract_address():

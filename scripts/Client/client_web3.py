@@ -8,13 +8,14 @@ workersToEvaluate: list(WorkerToEvaluate) = None
 localOutput: LocalOutput = None
 
 CHOSEN_NETWORK = "ganache-local"
+WORKER_INDEX = 1
 
 with open("scripts/Client/client-config.json", "r") as file:
     json_file = json.load(file)
     w3 = Web3(Web3.HTTPProvider(json_file[CHOSEN_NETWORK]["provider"]))
     chain_id = int(json_file[CHOSEN_NETWORK]["chain-id"])
-    my_address = json_file[CHOSEN_NETWORK]["address"]
-    private_key = json_file[CHOSEN_NETWORK]["private-key"]
+    my_address = json_file[CHOSEN_NETWORK]["address" + str(WORKER_INDEX)]
+    private_key = json_file[CHOSEN_NETWORK]["private-key" + str(WORKER_INDEX)]
 
 
 def get_contract_address():
@@ -78,9 +79,11 @@ def save_to_IPFS():
 
 def download_from_IPFS(modelsHash):
     for hash in modelsHash:
-        params = ("arg", hash)
+        params = {"arg": hash}
         response = requests.post("http://127.0.0.1:5001/api/v0/get", params=params)
         print(response)
+        with open(str(hash) + ".h5", "wb") as f:
+            f.write(response.content)
 
 
 def register():
@@ -121,7 +124,7 @@ async def log_loop(event_filters, poll_interval):
         i = 0
         for event_filter in event_filters:
             for event in event_filter.get_new_entries():
-                if check_if_in_round(event.args.Workers) == True:
+                if check_if_in_round(event.args.workers) == True:
                     if i == 0:  # case of RoundWorkersSelection
                         return True
                     else:  # case of LastRoundWorkersSelection
@@ -144,8 +147,10 @@ def listen_to_selection_events():
     try:
         ret_val = loop.run_until_complete(asyncio.gather(log_loop(event_filters, 2)))
         if ret_val == True:
+            print("[!] I have been selected for the current round")
             round()
         else:
+            print("[!] I have been selected for the current round(LAST)")
             last_round()
     finally:
         # close loop to free up system resources
