@@ -34,7 +34,7 @@ def get_account(index=None, id=None, key=False, key_index=None):
         return accounts[0]
     if id:
         return accounts.load(id)
-    return accounts.add(config["wallets"]["from_key"])
+    return accounts.add(config["wallets"]["from_key1"])
 
 
 def get_contract(contract_name):
