@@ -21,7 +21,7 @@ LOCAL_BATCH_SIZE = 64
 class LocalOutput:
     def __init__(self):
         self.model = None
-        self.bestKWorkers = []
+        self.bestKWorkers = list()
 
 
 class LocalDataset:
@@ -42,8 +42,7 @@ def get_loss(worker):
 
 
 # GLOBAL VARIABLES
-localDataset: LocalDataset = None
-localOutput: LocalOutput = None
+localOutput = LocalOutput()
 
 # load train and test dataset
 def load_dataset():
@@ -56,12 +55,6 @@ def load_dataset():
     trainY = to_categorical(trainY)
     testY = to_categorical(testY)
     return trainX, trainY, testX, testY
-
-
-def get_localDataset():
-    trainX, trainY, testX, testY = load_dataset()
-    localDataset.X = trainX
-    localDataset.Y = trainY
 
 
 # scale pixels
@@ -104,10 +97,11 @@ def define_model():
 def local_update(workersToEvaluate: list[WorkerToEvaluate], isLastRound: bool):
     # 1) EVALUATE PULLED MODELS AND SELECT BEST K' WORKERS
     # k = 1
+    trainX, trainY, _, _ = load_dataset()
     for w in workersToEvaluate:
         model = define_model()
-        model.load_weights(w.weightsFile)
-        loss, acc = model.evaluate(localDataset.X, localDataset.Y, verbose=0)
+        model.load_weights("./scripts/Client/models/" + w.weightsFile + ".h5")
+        loss, acc = model.evaluate(trainX, trainY, verbose=0)
         # print("Local evaluation accuracy on worker %i > %.3f" % (k, acc * 100.0))
         w.loss = loss
         w.accuracy = acc
@@ -138,8 +132,8 @@ def local_update(workersToEvaluate: list[WorkerToEvaluate], isLastRound: bool):
 
         # 3) LOCAL TRAINING
         new_model.fit(
-            localDataset.X,
-            localDataset.Y,
+            trainX,
+            trainY,
             epochs=LOCAL_EPOCHS,
             batch_size=64,
             verbose=0,
@@ -153,9 +147,6 @@ def local_update(workersToEvaluate: list[WorkerToEvaluate], isLastRound: bool):
 
 
 def run_learning(workersToEvaluate: list[WorkerToEvaluate], isLastRound: bool):
-    # Initialize the local dataset
-    get_localDataset()
-
     # Do local training
     local_update(workersToEvaluate, isLastRound)
 

@@ -1,3 +1,4 @@
+import sys
 import requests
 from client_ml import LocalOutput, WorkerToEvaluate, run_learning
 from web3 import Web3
@@ -5,18 +6,19 @@ import json
 import asyncio
 
 workersToEvaluate = list()
-localOutput: LocalOutput = None
+localOutput = LocalOutput()
 
 CHOSEN_NETWORK = "kovan"
 CHOSEN_NETWORK_ID = 42
-WORKER_INDEX = 1
+# WORKER_INDEX =
 
 with open("scripts/Client/client-config.json", "r") as file:
+    worker_index = sys.argv[1]
     json_file = json.load(file)
     w3 = Web3(Web3.HTTPProvider(json_file[CHOSEN_NETWORK]["provider"]))
     chain_id = int(json_file[CHOSEN_NETWORK]["chain-id"])
-    my_address = json_file[CHOSEN_NETWORK]["address" + str(WORKER_INDEX)]
-    private_key = json_file[CHOSEN_NETWORK]["private-key" + str(WORKER_INDEX)]
+    my_address = json_file[CHOSEN_NETWORK]["address" + str(worker_index)]
+    private_key = json_file[CHOSEN_NETWORK]["private-key" + str(worker_index)]
 
 
 def get_contract_address():
@@ -49,6 +51,7 @@ def get_models():
 
 
 def send_response():
+    global localOutput
     myModelHash = save_to_IPFS()
 
     contract_address = get_contract_address()
@@ -75,6 +78,7 @@ def send_response():
 
 
 def save_to_IPFS():
+    global localOutput
     response = requests.post(
         "http://127.0.0.1:5001/api/v0/add",
         files={localOutput.model: open(localOutput.model, "rb")},
@@ -90,7 +94,7 @@ def download_from_IPFS(modelsHash):
         params = {"arg": hash}
         response = requests.post("http://127.0.0.1:5001/api/v0/get", params=params)
         print(response)
-        with open(str(hash) + ".h5", "wb") as f:
+        with open("./scripts/Client/models/" + str(hash) + ".h5", "wb") as f:
             f.write(response.content)
 
 
@@ -135,8 +139,10 @@ async def log_loop(event_filters, poll_interval):
             for event in event_filter.get_new_entries():
                 if check_if_in_round(event.args.workers) == True:
                     if i == 0:  # case of RoundWorkersSelection
+                        print(f"i = {i}")
                         return True
-                    else:  # case of LastRoundWorkersSelection
+                    else:
+                        print(f"i = {i}")  # case of LastRoundWorkersSelection
                         return False
                 i = i + 1
         await asyncio.sleep(poll_interval)
@@ -155,6 +161,8 @@ def listen_to_selection_events():
     loop = asyncio.get_event_loop()
     try:
         ret_val = loop.run_until_complete(asyncio.gather(log_loop(event_filters, 2)))
+        print(ret_val)
+        print(ret_val[0])
         if ret_val == True:
             print("[!] I have been selected for the current round")
             round()
@@ -174,6 +182,7 @@ def round():
         workersToEvaluate.append(w)
 
     # Do local training
+    global localOutput
     localOutput = run_learning(workersToEvaluate, False)
 
     # Send response to the SC
@@ -188,12 +197,14 @@ def last_round():
         workersToEvaluate.append(w)
 
     # Do local training
+    global localOutput
     localOutput = run_learning(workersToEvaluate, True)
 
     commit_secret_vote()
 
 
 def commit_secret_vote():
+    global localOutput
     contract_address = get_contract_address()
     federated_ML = w3.eth.contract(contract_address, abi=get_ABI(contract_address))
 
@@ -244,6 +255,7 @@ def listen_to_disclosure_event():
 
 
 def disclose_secret_vote():
+    global localOutput
     contract_address = get_contract_address()
     federated_ML = w3.eth.contract(contract_address, abi=get_ABI(contract_address))
 
@@ -317,3 +329,16 @@ def try_withdraw_reward():
 
     balance_after = w3.eth.get_balance(my_address)
     print(f"Balance after: {balance_after}")
+
+
+def main():
+    # Register to the SC
+    register()
+
+    # Listen to the events of RoundWorkersSelection and LastRoundWorkersSelection
+    print("LIstening to worker selection events!")
+    listen_to_selection_events()
+
+
+if __name__ == "__main__":
+    main()
