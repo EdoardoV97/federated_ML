@@ -4,12 +4,12 @@ from web3 import Web3
 import json
 import asyncio
 
-workersToEvaluate: list
+workersToEvaluate = list()
 localOutput: LocalOutput = None
 
 CHOSEN_NETWORK = "kovan"
 CHOSEN_NETWORK_ID = 42
-WORKER_INDEX = 5
+WORKER_INDEX = 1
 
 with open("scripts/Client/client-config.json", "r") as file:
     json_file = json.load(file)
