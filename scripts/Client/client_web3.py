@@ -58,6 +58,7 @@ def send_response():
     federated_ML = w3.eth.contract(contract_address, abi=get_ABI(contract_address))
 
     not_confirmed = True
+    already_redone = False
     while not_confirmed:
         transaction = federated_ML.functions.commitWork(
             localOutput.bestKWorkers, myModelHash
@@ -78,8 +79,13 @@ def send_response():
         tx_receipt = w3.eth.wait_for_transaction_receipt(tx_hash)
         print(tx_receipt)
         print("DONE!")
-        redo = input("REDO? y/n")
-        if redo == "n":
+        if not already_redone:
+            redo = input("REDO? y/n")
+            if redo == "n":
+                not_confirmed = False
+            else:
+                already_redone = True
+        else:
             not_confirmed = False
 
 
@@ -168,16 +174,16 @@ def listen_to_selection_events():
         ret_val = loop.run_until_complete(asyncio.gather(log_loop(event_filters, 4)))
         if ret_val[0] == True:
             print("\n[!] I have been selected for the current round")
-            round()
+            round(loop)
         else:
             print("\n[!] I have been selected for the current round(LAST)")
-            last_round()
+            last_round(loop)
     finally:
         # close loop to free up system resources
         loop.close()
 
 
-def round():
+def round(loop):
     # Get the models to evaluate
     models_path = get_models()
     for p in models_path:
@@ -190,10 +196,10 @@ def round():
 
     # Send response to the SC
     send_response()
-    listen_to_end_task_event()
+    listen_to_end_task_event(loop)
 
 
-def last_round():
+def last_round(loop):
     # Get the models to evaluate
     models_path = get_models()
     for p in models_path:
@@ -205,8 +211,8 @@ def last_round():
     localOutput = run_learning(workersToEvaluate, True, worker_index)
 
     commit_secret_vote()
-    listen_to_disclosure_event()
-    listen_to_end_task_event()
+    listen_to_disclosure_event(loop)
+    listen_to_end_task_event(loop)
 
 
 def commit_secret_vote():
@@ -247,13 +253,13 @@ async def log_loop_disclosure(event_filter, poll_interval):
         await asyncio.sleep(poll_interval)
 
 
-def listen_to_disclosure_event():
+def listen_to_disclosure_event(loop):
     contract_address = get_contract_address()
     federated_ML = w3.eth.contract(contract_address, abi=get_ABI(contract_address))
     event_filter = federated_ML.events.LastRoundDisclosurePhase.createFilter(
         fromBlock="latest"
     )
-    loop = asyncio.get_event_loop()
+    # loop = asyncio.get_event_loop()
     try:
         loop.run_until_complete(asyncio.gather(log_loop_disclosure(event_filter, 2)))
     finally:
@@ -298,16 +304,17 @@ async def log_loop_task_ended(event_filter, poll_interval):
         await asyncio.sleep(poll_interval)
 
 
-def listen_to_end_task_event():
+def listen_to_end_task_event(loop):
     contract_address = get_contract_address()
     federated_ML = w3.eth.contract(contract_address, abi=get_ABI(contract_address))
     event_filter = federated_ML.events.TaskEnded.createFilter(fromBlock="latest")
-    loop = asyncio.get_event_loop()
+    # loop = asyncio.get_event_loop()
     try:
         loop.run_until_complete(asyncio.gather(log_loop_task_ended(event_filter, 2)))
     finally:
         # close loop to free up system resources
-        loop.close()
+        # loop.close()
+        pass
 
 
 def try_withdraw_reward():
