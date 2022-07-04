@@ -94,7 +94,9 @@ def define_model():
     return model
 
 
-def local_update(workersToEvaluate: list[WorkerToEvaluate], isLastRound: bool):
+def local_update(
+    workersToEvaluate: list[WorkerToEvaluate], isLastRound: bool, workerIndex
+):
     # 1) EVALUATE PULLED MODELS AND SELECT BEST K' WORKERS
     # k = 1
     trainX, trainY, _, _ = load_dataset()
@@ -118,8 +120,12 @@ def local_update(workersToEvaluate: list[WorkerToEvaluate], isLastRound: bool):
                 )  # 1st OUTPUT
 
     if not isLastRound:
+        model = define_model()
         # 2) AVERAGE BEST K' models
-        weights = [w.localOutput.model.get_weights() for w in localOutput.bestKWorkers]
+        weights = []
+        for w in bestVotedWorkers:
+            model.load_weights("./scripts/Client/models/" + w.weightsFile + ".h5")
+            weights.append(model.get_weights())
         new_weights = list()
         for weights_list_tuple in zip(*weights):
             new_weights.append(
@@ -141,14 +147,17 @@ def local_update(workersToEvaluate: list[WorkerToEvaluate], isLastRound: bool):
         # trainX, trainY, testX, testY = load_dataset()
         # _, acc = model.evaluate(testX, testY, verbose=0)
         # print("Accuracy after local training > %.3f" % (acc * 100.0))
-        model.save_weights("myModel")  # 2nd OUTPUT
-        localOutput.model = "myModel"
+        file_path = "scripts/Client/models/modelOfWorker" + str(workerIndex) + ".h5"
+        model.save_weights(file_path)
+        localOutput.model = file_path  # 2nd OUTPUT
         return acc * 100.0
 
 
-def run_learning(workersToEvaluate: list[WorkerToEvaluate], isLastRound: bool):
+def run_learning(
+    workersToEvaluate: list[WorkerToEvaluate], isLastRound: bool, workerIndex
+):
     # Do local training
-    local_update(workersToEvaluate, isLastRound)
+    local_update(workersToEvaluate, isLastRound, workerIndex)
 
     # Return the output
     return localOutput
