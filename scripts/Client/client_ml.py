@@ -100,13 +100,13 @@ def local_update(
     # 1) EVALUATE PULLED MODELS AND SELECT BEST K' WORKERS
     # k = 1
     trainX, trainY, _, _ = load_dataset()
-    trainX = trainX[:64, :]
-    trainY = trainY[:64, :]
+    trainX = trainX[: 64 + int(workerIndex) * 2, :]
+    trainY = trainY[: 64 + int(workerIndex) * 2, :]
     for w in workersToEvaluate:
         model = define_model()
         model.load_weights("./scripts/Client/models/" + w.weightsFile + ".h5")
         loss, acc = model.evaluate(trainX, trainY, verbose=0)
-        # print("Local evaluation accuracy on worker %i > %.3f" % (k, acc * 100.0))
+        print("Local evaluation accuracy on worker > %.3f" % (acc * 100.0))
         w.loss = loss
         w.accuracy = acc
         # k = k + 1
@@ -120,6 +120,7 @@ def local_update(
                 localOutput.bestKWorkers.append(
                     workersToEvaluate.index(w2)
                 )  # 1st OUTPUT
+    print(f"Best workers array indexes: {localOutput.bestKWorkers}")
 
     if not isLastRound:
         model = define_model()

@@ -57,24 +57,30 @@ def send_response():
     contract_address = get_contract_address()
     federated_ML = w3.eth.contract(contract_address, abi=get_ABI(contract_address))
 
-    transaction = federated_ML.functions.commitWork(
-        localOutput.bestKWorkers, myModelHash
-    ).buildTransaction(
-        {
-            "chainId": chain_id,
-            "gasPrice": w3.eth.gas_price,
-            "from": my_address,
-            "nonce": w3.eth.getTransactionCount(my_address),
-        }
-    )
+    not_confirmed = True
+    while not_confirmed:
+        transaction = federated_ML.functions.commitWork(
+            localOutput.bestKWorkers, myModelHash
+        ).buildTransaction(
+            {
+                "chainId": chain_id,
+                "gasPrice": w3.eth.gas_price,
+                "from": my_address,
+                "nonce": w3.eth.getTransactionCount(my_address),
+            }
+        )
 
-    signed_transaction = w3.eth.account.sign_transaction(
-        transaction, private_key=private_key
-    )
-    tx_hash = w3.eth.send_raw_transaction(signed_transaction.rawTransaction)
-    print("Pushing new model...")
-    tx_receipt = w3.eth.wait_for_transaction_receipt(tx_hash)
-    print("DONE!")
+        signed_transaction = w3.eth.account.sign_transaction(
+            transaction, private_key=private_key
+        )
+        tx_hash = w3.eth.send_raw_transaction(signed_transaction.rawTransaction)
+        print(f"Pushing new model. Tx hash: {tx_hash}")
+        tx_receipt = w3.eth.wait_for_transaction_receipt(tx_hash)
+        print(tx_receipt)
+        print("DONE!")
+        redo = input("REDO? y/n")
+        if redo == "n":
+            not_confirmed = False
 
 
 def save_to_IPFS():
@@ -159,7 +165,7 @@ def listen_to_selection_events():
     )
     loop = asyncio.get_event_loop()
     try:
-        ret_val = loop.run_until_complete(asyncio.gather(log_loop(event_filters, 2)))
+        ret_val = loop.run_until_complete(asyncio.gather(log_loop(event_filters, 4)))
         if ret_val[0] == True:
             print("[!] I have been selected for the current round")
             round()
