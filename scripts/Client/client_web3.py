@@ -139,10 +139,9 @@ async def log_loop(event_filters, poll_interval):
             for event in event_filter.get_new_entries():
                 if check_if_in_round(event.args.workers) == True:
                     if i == 0:  # case of RoundWorkersSelection
-                        print(f"i = {i}")
                         return True
                     else:
-                        print(f"i = {i}")  # case of LastRoundWorkersSelection
+                        # case of LastRoundWorkersSelection
                         return False
                 i = i + 1
         await asyncio.sleep(poll_interval)
@@ -161,9 +160,7 @@ def listen_to_selection_events():
     loop = asyncio.get_event_loop()
     try:
         ret_val = loop.run_until_complete(asyncio.gather(log_loop(event_filters, 2)))
-        print(ret_val)
-        print(ret_val[0])
-        if ret_val == True:
+        if ret_val[0] == True:
             print("[!] I have been selected for the current round")
             round()
         else:
