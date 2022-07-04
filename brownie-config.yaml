@@ -46,6 +46,8 @@ networks:
     link_token: '0x01BE23585060835E02B77ef475b0Cc51aA1e0709'
     fee: 100000000000000000
     keyhash: '0x2ed0feb3e7fd2022120aa84fab1945545a9f2ffc9076fd6156fa96eaff4c1311'
+    api_oracle: '0xc57B33452b4F7BB189bB5AfaE9cc4aBa1f7a4FD8' # Fake
+    job_id: '7401f318127148a894c00c292e486ffd' # Fake
   polygon-test:
     verify: True
     vrf_coordinator: '0x8C7382F9D8f56b33781fE506E897a4F1e2d17255'
