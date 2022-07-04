@@ -1,3 +1,4 @@
+import asyncio
 import json
 from web3 import Web3
 
@@ -37,14 +38,32 @@ def main():
     federated_ML = w3.eth.contract(contract_address, abi=get_ABI(contract_address))
     print(f"State is: {federated_ML.functions.state().call()}")
 
-    workers = federated_ML.functions.getWorkersInRound(1).call()
-    print(workers)
+    # workers = federated_ML.functions.getWorkersInRound(2).call()
+    # print(workers)
 
-    result = federated_ML.functions.addressToWorkerInfo(
-        "0xfa3e19450b82dFc4300053B2cdB1Cdba88ba8aa6"
-    ).call()
-    print(result)
-    pass
+    # result = federated_ML.functions.addressToWorkerInfo(
+    #     "0xD302BDD84E9EC8569E5fC6C398aAC9536d9fB38C"
+    # ).call()
+    # print(result)
+
+
+#     event_filter = federated_ML.events.LastRoundDisclosurePhase.createFilter(
+#         fromBlock="latest"
+#     )
+#     loop = asyncio.get_event_loop()
+#     try:
+#         loop.run_until_complete(asyncio.gather(log_loop_disclosure(event_filter, 2)))
+#     finally:
+#         # close loop to free up system resources
+#         loop.close()
+
+
+# async def log_loop_disclosure(event_filter, poll_interval):
+#     while True:
+#         for e in event_filter.get_new_entries():
+#             print(f"Received!!! {e}")
+#             return
+#         await asyncio.sleep(poll_interval)
 
 
 if __name__ == "__main__":
