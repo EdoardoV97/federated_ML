@@ -180,7 +180,7 @@ def round():
 
     # Do local training
     global localOutput
-    localOutput = run_learning(workersToEvaluate, False)
+    localOutput = run_learning(workersToEvaluate, False, worker_index)
 
     # Send response to the SC
     send_response()
@@ -195,7 +195,7 @@ def last_round():
 
     # Do local training
     global localOutput
-    localOutput = run_learning(workersToEvaluate, True)
+    localOutput = run_learning(workersToEvaluate, True, worker_index)
 
     commit_secret_vote()
 

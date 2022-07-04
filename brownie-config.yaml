@@ -32,6 +32,7 @@ networks:
     keyhash: '0x6c3699283bda56ad74f6b855546325b68d482e983852a7a82979cc4807b641f4'
     api_oracle: '0xc57B33452b4F7BB189bB5AfaE9cc4aBa1f7a4FD8'
     job_id: '7401f318127148a894c00c292e486ffd'
+    explorer: https://api-kovan.etherscan.io/api
   eth-kovan-fork:
     verify: True
     vrf_coordinator: '0xdD3782915140c8f3b190B5D67eAc6dc5760C46E9'
