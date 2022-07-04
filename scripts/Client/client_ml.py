@@ -100,6 +100,8 @@ def local_update(
     # 1) EVALUATE PULLED MODELS AND SELECT BEST K' WORKERS
     # k = 1
     trainX, trainY, _, _ = load_dataset()
+    trainX = trainX[:64, :]
+    trainY = trainY[:64, :]
     for w in workersToEvaluate:
         model = define_model()
         model.load_weights("./scripts/Client/models/" + w.weightsFile + ".h5")
@@ -141,7 +143,7 @@ def local_update(
             trainX,
             trainY,
             epochs=LOCAL_EPOCHS,
-            batch_size=64,
+            batch_size=LOCAL_BATCH_SIZE,
             verbose=0,
         )
         # trainX, trainY, testX, testY = load_dataset()
