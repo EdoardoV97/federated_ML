@@ -5,7 +5,7 @@ from scripts.helpful_scripts import fund_with_link, get_account, get_contract
 # NUM_OF_WORKERS = 6
 # VOTE_MINUTES = 60
 # REGISTRATION_MINUTES = 60
-INITIAL_MODEL_HASH = "QmfYwyZqpMxorkMHkYuKmEsxyG6ia2V3ZkRc4HmjMCRv6s"
+INITIAL_MODEL_HASH = "QmeGCXqw21Y7g1w53GtzAWz8bBzHN7ES1PMS54RH44X56i"
 
 
 def deploy_FederatedML():

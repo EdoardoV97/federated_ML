@@ -99,9 +99,11 @@ def local_update(
 ):
     # 1) EVALUATE PULLED MODELS AND SELECT BEST K' WORKERS
     # k = 1
-    trainX, trainY, _, _ = load_dataset()
-    trainX = trainX[: 64 + int(workerIndex) * 2, :]
-    trainY = trainY[: 64 + int(workerIndex) * 2, :]
+    trainX, trainY, testX, testY = load_dataset()
+    trainX = trainX[: 64 + int(workerIndex) * 50, :]
+    trainY = trainY[: 64 + int(workerIndex) * 50, :]
+    # prepare pixel data
+    trainX, testX = prep_pixels(trainX, testX)
     for w in workersToEvaluate:
         model = define_model()
         model.load_weights("./scripts/Client/models/" + w.weightsFile + ".h5")
@@ -145,13 +147,12 @@ def local_update(
             trainY,
             epochs=LOCAL_EPOCHS,
             batch_size=LOCAL_BATCH_SIZE,
-            verbose=0,
+            validation_data=(testX, testY),
         )
-        # trainX, trainY, testX, testY = load_dataset()
-        # _, acc = model.evaluate(testX, testY, verbose=0)
-        # print("Accuracy after local training > %.3f" % (acc * 100.0))
+        _, acc = new_model.evaluate(testX, testY, verbose=0)
+        print("Accuracy after local training > %.3f" % (acc * 100.0))
         file_path = "scripts/Client/models/modelOfWorker" + str(workerIndex) + ".h5"
-        model.save_weights(file_path)
+        new_model.save_weights(file_path)
         localOutput.model = file_path  # 2nd OUTPUT
         return acc * 100.0
 
