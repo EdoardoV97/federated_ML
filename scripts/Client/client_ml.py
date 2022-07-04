@@ -113,7 +113,7 @@ def local_update(
         w.accuracy = acc
         # k = k + 1
 
-    bestVotedWorkers = workersToEvaluate
+    bestVotedWorkers = workersToEvaluate.copy()
     bestVotedWorkers.sort(key=get_loss)
     bestVotedWorkers = bestVotedWorkers[: min(max(BEST_K, 1), len(workersToEvaluate))]
     for w in bestVotedWorkers:
