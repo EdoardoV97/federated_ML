@@ -119,7 +119,8 @@ def local_update(
             if w.weightsFile == w2.weightsFile:
                 localOutput.bestKWorkers.append(
                     workersToEvaluate.index(w2)
-                )  # 1st OUTPUT
+                )  # 1st OUTPUT+
+                break
     print(f"Best workers array indexes: {localOutput.bestKWorkers}")
 
     if not isLastRound:

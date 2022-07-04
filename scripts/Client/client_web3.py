@@ -149,7 +149,7 @@ async def log_loop(event_filters, poll_interval):
                     else:
                         # case of LastRoundWorkersSelection
                         return False
-                i = i + 1
+            i = i + 1
         await asyncio.sleep(poll_interval)
 
 
@@ -204,6 +204,8 @@ def last_round():
     localOutput = run_learning(workersToEvaluate, True, worker_index)
 
     commit_secret_vote()
+    listen_to_disclosure_event()
+    listen_to_end_task_event()
 
 
 def commit_secret_vote():
@@ -228,7 +230,7 @@ def commit_secret_vote():
         transaction, private_key=private_key
     )
     tx_hash = w3.eth.send_raw_transaction(signed_transaction.rawTransaction)
-    print("Pushing new model...")
+    print("Committing secret vote...")
     tx_receipt = w3.eth.wait_for_transaction_receipt(tx_hash)
     print("DONE!")
 
@@ -240,6 +242,7 @@ async def log_loop_disclosure(event_filter, poll_interval):
     while True:
         for _ in event_filter.get_new_entries():
             disclose_secret_vote()
+            return
         await asyncio.sleep(poll_interval)
 
 
@@ -251,7 +254,7 @@ def listen_to_disclosure_event():
     )
     loop = asyncio.get_event_loop()
     try:
-        loop.run_until_complete(asyncio.gather(log_loop(event_filter, 2)))
+        loop.run_until_complete(asyncio.gather(log_loop_disclosure(event_filter, 2)))
     finally:
         # close loop to free up system resources
         loop.close()
@@ -290,6 +293,7 @@ async def log_loop_task_ended(event_filter, poll_interval):
     while True:
         for _ in event_filter.get_new_entries():
             try_withdraw_reward()
+            return
         await asyncio.sleep(poll_interval)
 
 
@@ -299,7 +303,7 @@ def listen_to_end_task_event():
     event_filter = federated_ML.events.TaskEnded.createFilter(fromBlock="latest")
     loop = asyncio.get_event_loop()
     try:
-        loop.run_until_complete(asyncio.gather(log_loop(event_filter, 2)))
+        loop.run_until_complete(asyncio.gather(log_loop_task_ended(event_filter, 2)))
     finally:
         # close loop to free up system resources
         loop.close()
