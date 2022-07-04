@@ -167,10 +167,10 @@ def listen_to_selection_events():
     try:
         ret_val = loop.run_until_complete(asyncio.gather(log_loop(event_filters, 4)))
         if ret_val[0] == True:
-            print("[!] I have been selected for the current round")
+            print("\n[!] I have been selected for the current round")
             round()
         else:
-            print("[!] I have been selected for the current round(LAST)")
+            print("\n[!] I have been selected for the current round(LAST)")
             last_round()
     finally:
         # close loop to free up system resources
@@ -190,6 +190,7 @@ def round():
 
     # Send response to the SC
     send_response()
+    listen_to_end_task_event()
 
 
 def last_round():
@@ -257,7 +258,8 @@ def listen_to_disclosure_event():
         loop.run_until_complete(asyncio.gather(log_loop_disclosure(event_filter, 2)))
     finally:
         # close loop to free up system resources
-        loop.close()
+        # loop.close()
+        pass
 
 
 def disclose_secret_vote():
@@ -283,7 +285,6 @@ def disclose_secret_vote():
     print("Disclosing vote...")
     tx_receipt = w3.eth.wait_for_transaction_receipt(tx_hash)
     print("DONE!")
-    pass
 
 
 # asynchronous defined function to loop
@@ -343,7 +344,7 @@ def main():
     register()
 
     # Listen to the events of RoundWorkersSelection and LastRoundWorkersSelection
-    print("LIstening to worker selection events!")
+    print("Listening to worker selection events!")
     listen_to_selection_events()
 
 
