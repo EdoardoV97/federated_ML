@@ -25,6 +25,7 @@ def main():
     tx = federatedML_contract.fund({"from": account, "value": fund_quantity})
     tx.wait(1)
 
+    print("Stopping funding!")
     # Stop funding phase
     tx = federatedML_contract.stopFunding({"from": account})
     tx.wait(1)
