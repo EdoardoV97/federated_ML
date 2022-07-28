@@ -80,6 +80,7 @@ contract FederatedML is Ownable, VRFConsumerBase, ChainlinkClient {
         // uint16 _roundsNumber,
         // uint16 _voteMinutes,
         // uint16 _registrationMinutes,
+        // string memory _taskDescription
         string memory _initialModelHash,
         address _vrfCoordinator,
         address _linkTokenAddress,
@@ -101,7 +102,9 @@ contract FederatedML is Ownable, VRFConsumerBase, ChainlinkClient {
         oracleApiAddress = _oracleApiAddress;
         jobId = _jobId;
         // voteMinutes = _voteMinutes;
+        voteMinutes = 10;
         // registrationMinutes = _registrationMinutes;
+        registrationMinutes = 5;
         initialModelHash = _initialModelHash;
         linkTokenAddress = _linkTokenAddress;
         workersInRound = workersNumber / roundsNumber;
@@ -375,13 +378,15 @@ contract FederatedML is Ownable, VRFConsumerBase, ChainlinkClient {
     }
 
     function startTimer(uint16 _voteMinutes) internal {
-        // Chainlink.Request memory req = buildChainlinkRequest(
-        //     jobId,
-        //     address(this),
-        //     this.timerEnded.selector
-        // );
-        // req.addUint("until", block.timestamp + _voteMinutes * 1 minutes);
-        // lastTimerRequestId = sendChainlinkRequestTo(oracleApiAddress, req, fee);
+        Chainlink.Request memory req = buildChainlinkRequest(
+            jobId,
+            address(this),
+            this.timerEnded.selector
+        );
+        setChainlinkToken(linkTokenAddress);
+        setChainlinkOracle(oracleApiAddress);
+        req.addUint("until", block.timestamp + _voteMinutes * 1 minutes);
+        lastTimerRequestId = sendChainlinkRequest(req, fee);
     }
 
     function timerEnded(bytes32 _requestId)
