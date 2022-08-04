@@ -218,25 +218,30 @@ contract FederatedML is Ownable, VRFConsumerBase, ChainlinkClient {
             addressToWorkerInfo[msg.sender].rewardTaken == false,
             "The reward was already withdrawed!"
         );
-        // Sum the votes considering the successive round
-        if (
-            rounds[uint256(roundIndex)].ranking.length == 0 &&
-            uint256(roundIndex) != roundsNumber - 1
-        ) {
-            rounds[uint256(roundIndex)].ranking = computeRanking(
-                uint256(roundIndex)
-            );
-        }
-        //Check if last round
-        if (uint256(roundIndex) == roundsNumber - 1) {
-            // Uniform distribution
-            payable(msg.sender).transfer(totalRoundReward / workersInRound);
-        } else {
-            // w.r.t. the ranking give the correct reward
-            for (uint256 i = 0; i < topWorkersInRound; i++) {
-                if (msg.sender == rounds[uint256(roundIndex)].ranking[i]) {
-                    payable(msg.sender).transfer(rewards[i]);
+        // Compute the rankings is not yet done
+        if (rounds[uint256(roundIndex)].ranking.length == 0) {
+            // Not last round case
+            if (uint256(roundIndex) != roundsNumber - 1) {
+                rounds[uint256(roundIndex)].ranking = computeRanking(
+                    uint256(roundIndex)
+                );
+            } else {
+                // Last Round Case
+                // Check if last but one round's ranking not already computed
+                if (rounds[uint256(roundIndex - 1)].ranking.length == 0) {
+                    rounds[uint256(roundIndex - 1)].ranking = computeRanking(
+                        uint256(roundIndex - 1)
+                    );
                 }
+                rounds[uint256(roundIndex)].ranking = computeLastRoundRanking(
+                    uint256(roundIndex)
+                );
+            }
+        }
+        // w.r.t. the ranking give the correct reward
+        for (uint256 i = 0; i < topWorkersInRound; i++) {
+            if (msg.sender == rounds[uint256(roundIndex)].ranking[i]) {
+                payable(msg.sender).transfer(rewards[i]);
             }
         }
         addressToWorkerInfo[msg.sender].rewardTaken = true;
@@ -266,6 +271,42 @@ contract FederatedML is Ownable, VRFConsumerBase, ChainlinkClient {
             votes[i] = addressToWorkerInfo[
                 EnumerableSet.at(rounds[_roundIndex].workers, i)
             ].votesReceived;
+        }
+        (votes, ranking) = quickSort(
+            votes,
+            ranking,
+            0,
+            int256(votes.length) - 1
+        );
+        return ranking;
+    }
+
+    function computeLastRoundRanking(uint256 _roundIndex)
+        internal
+        returns (address[] memory)
+    {
+        address[] memory ranking = new address[](workersInRound);
+        uint256[] memory votes = new uint256[](workersInRound);
+        for (
+            uint256 i = 0;
+            i < EnumerableSet.length(rounds[_roundIndex].workers);
+            i++
+        ) {
+            ranking[i] = EnumerableSet.at(rounds[_roundIndex].workers, i);
+            for (uint256 j = 0; j < topWorkersInRound; j++) {
+                for (
+                    uint256 k = 0;
+                    k < addressToWorkerInfo[ranking[i]].votesGranted.length;
+                    k++
+                ) {
+                    if (
+                        addressToWorkerInfo[ranking[i]].votesGranted[k] ==
+                        rounds[_roundIndex - 1].ranking[j]
+                    ) {
+                        votes[i]++;
+                    }
+                }
+            }
         }
         (votes, ranking) = quickSort(
             votes,
@@ -431,7 +472,7 @@ contract FederatedML is Ownable, VRFConsumerBase, ChainlinkClient {
         uint256 index = 0;
         uint16 counter = 0;
         uint16 arrayIndex = 0;
-        // Given the random numbers use it as indexes to get the workers sequentially
+        // Get the remaining workers sequentially
         while (counter < workersInRound) {
             address w = EnumerableSet.at(workers, index);
             if (!addressToWorkerInfo[w].alreadySelected) {
@@ -673,33 +714,33 @@ contract FederatedML is Ownable, VRFConsumerBase, ChainlinkClient {
     }
 
     // Fake function to be deleted after testing locally
-    function fulfillRandomnessTesting(uint256 _randomness) public {
-        require(state == STATE.ROUND_PREPARATION, "You aren't there yet!");
-        require(_randomness > 0, "random-not-found");
-        startRound(_randomness);
-    }
+    // function fulfillRandomnessTesting(uint256 _randomness) public {
+    //     require(state == STATE.ROUND_PREPARATION, "You aren't there yet!");
+    //     require(_randomness > 0, "random-not-found");
+    //     startRound(_randomness);
+    // }
 
-    function getWorkersInRound(uint256 index)
-        public
-        view
-        returns (address[] memory)
-    {
-        require(index < rounds.length, "Index out of bound!");
-        address[] memory temp = new address[](
-            EnumerableSet.length(rounds[index].workers)
-        );
-        for (uint256 i = 0; i < temp.length; i++) {
-            temp[i] = EnumerableSet.at(rounds[index].workers, i);
-        }
-        return temp;
-    }
+    // function getWorkersInRound(uint256 index)
+    //     public
+    //     view
+    //     returns (address[] memory)
+    // {
+    //     require(index < rounds.length, "Index out of bound!");
+    //     address[] memory temp = new address[](
+    //         EnumerableSet.length(rounds[index].workers)
+    //     );
+    //     for (uint256 i = 0; i < temp.length; i++) {
+    //         temp[i] = EnumerableSet.at(rounds[index].workers, i);
+    //     }
+    //     return temp;
+    // }
 
-    function getRankingInRound(uint256 index)
-        public
-        view
-        returns (address[] memory)
-    {
-        require(index < rounds.length, "Index out of bound!");
-        return rounds[index].ranking;
-    }
+    // function getRankingInRound(uint256 index)
+    //     public
+    //     view
+    //     returns (address[] memory)
+    // {
+    //     require(index < rounds.length, "Index out of bound!");
+    //     return rounds[index].ranking;
+    // }
 }
