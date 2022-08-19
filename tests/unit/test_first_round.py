@@ -1,4 +1,3 @@
-from tabnanny import check
 import unittest
 from brownie import config, network
 from scripts.helpful_scripts import fund_with_link, get_account, get_contract
