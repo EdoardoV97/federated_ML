@@ -33,6 +33,7 @@ contract FederatedML_ZK is Ownable, VRFConsumerBase, ChainlinkClient {
         string modelHash;
         string mtrModel;
         bytes32 factId;
+        string mtrDataset;
     }
     struct Round {
         EnumerableSet.AddressSet workers;
@@ -185,7 +186,7 @@ contract FederatedML_ZK is Ownable, VRFConsumerBase, ChainlinkClient {
         return (workersInRound - 2 * _j + 1) / (workersInRound - 1);
     }
 
-    function register() public payable {
+    function register(string memory _mtrDataset) public payable {
         require(state == STATE.REGISTERING, "Is not possible to register now!");
         require(msg.value == entranceFee, "Minimum fee not satisfied!");
         require(
@@ -193,6 +194,7 @@ contract FederatedML_ZK is Ownable, VRFConsumerBase, ChainlinkClient {
             "You are already registered!"
         ); // It requires that entranceFee is not 0
         addressToWorkerInfo[msg.sender].fee = true;
+        addressToWorkerInfo[msg.sender].mtrDataset = _mtrDataset;
         EnumerableSet.add(workers, msg.sender);
         if (EnumerableSet.length(workers) >= workersNumber) {
             initializeRound();
