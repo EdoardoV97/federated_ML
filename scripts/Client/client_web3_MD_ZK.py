@@ -221,7 +221,7 @@ def last_round(loop):
 
     # Do local training
     global localOutput
-    localOutput = run_learning(workersToEvaluate, True, worker_index)
+    # localOutput = run_learning(workersToEvaluate, True, worker_index)
 
     # If merge version MD+ZK uncomment and comment the run_learning
     localOutput.bestKWorkers = input("Copy and paste the votes array").split(",")
