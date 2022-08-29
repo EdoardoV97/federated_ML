@@ -77,7 +77,7 @@ def test_withdraw():
     tx.wait(1)
     print(f"Worker{selected_addresses_index_2[1]} committed the model update")
 
-    # The winner pf the round withdraw
+    # The winner of the round withdraw
     prev_balance = get_account(selected_addresses_index_1[0]).balance()
     tx = federatedML_contract.withdrawReward(
         {"from": get_account(selected_addresses_index_1[0])}
@@ -89,7 +89,7 @@ def test_withdraw():
     )
     # Check reward
     assert actual_balance - prev_balance == 1666666666666666666
-    # The looser pf the round withdraw (reward 0)
+    # The looser of the round withdraw (reward 0)
     prev_balance = get_account(selected_addresses_index_1[1]).balance()
     tx = federatedML_contract.withdrawReward(
         {"from": get_account(selected_addresses_index_1[1])}
