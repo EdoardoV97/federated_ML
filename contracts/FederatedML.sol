@@ -95,7 +95,7 @@ contract FederatedML is Ownable, VRFConsumerBase, ChainlinkClient {
         // );
         // workersNumber = _workersNumber;
         // roundsNumber = _roundsNumber;
-        workersNumber = 6;
+        workersNumber = 30; // 30 in local unit test
         roundsNumber = 3;
         fee = _fee;
         keyhash = _keyhash;
@@ -108,7 +108,7 @@ contract FederatedML is Ownable, VRFConsumerBase, ChainlinkClient {
         initialModelHash = _initialModelHash;
         linkTokenAddress = _linkTokenAddress;
         workersInRound = workersNumber / roundsNumber;
-        topWorkersInRound = 1;
+        topWorkersInRound = 5; // 5 in local unit test
     }
 
     function fund() public payable {
@@ -142,13 +142,16 @@ contract FederatedML is Ownable, VRFConsumerBase, ChainlinkClient {
             coefficients[j] = computeRewardCoefficient(j + 1);
             coefficientsSum += coefficients[j];
         }
+
         r1 =
             (bounty * 10**18 * 10**18) /
             (coefficientsSum *
-                roundsNumber *
-                10**18 -
-                ((workersNumber * 10**18 * 10**18) /
-                    (((topWorkersInRound * 10**18) / 2) + 2 * 10**18)));
+                roundsNumber -
+                ((workersNumber *
+                    (workersInRound - 2 * topWorkersInRound + 1) *
+                    10**18) /
+                    (workersInRound - 1) /
+                    (workersInRound - topWorkersInRound + 1)));
 
         upperBound =
             ((((workersInRound - 2 * topWorkersInRound + 1) * 10**18) /
@@ -156,27 +159,26 @@ contract FederatedML is Ownable, VRFConsumerBase, ChainlinkClient {
             10**18;
 
         lowerBound =
-            (r1 * 10**18) /
-            (((topWorkersInRound * 10**18) / 2) + 2 * 10**18);
+            ((((workersInRound - 2 * topWorkersInRound + 1) * 10**18) /
+                (workersInRound - 1)) * r1) /
+            (workersInRound - topWorkersInRound + 1) /
+            10**18;
 
         require(
             lowerBound <= upperBound,
             "Is not possible to compute a valid fee in the current setting!"
         );
-        r1 = r1 / 10**18;
-        upperBound = upperBound / 10**18;
-        lowerBound = lowerBound / 10**18;
 
-        entranceFee = lowerBound;
+        entranceFee = lowerBound / 10**18;
         for (uint64 j = 0; j < coefficients.length; j++) {
-            rewards.push(coefficients[j] * r1);
+            rewards.push((coefficients[j] * r1) / 10**18 / 10**18);
             totalRoundReward += rewards[j];
         }
         return;
     }
 
     function computeRewardCoefficient(uint256 _j) internal returns (uint256) {
-        return (workersInRound - 2 * _j + 1) / (workersInRound - 1);
+        return ((workersInRound - 2 * _j + 1) * 10**18) / (workersInRound - 1);
     }
 
     function register() public payable {
@@ -218,7 +220,7 @@ contract FederatedML is Ownable, VRFConsumerBase, ChainlinkClient {
             addressToWorkerInfo[msg.sender].rewardTaken == false,
             "The reward was already withdrawed!"
         );
-        // Compute the rankings is not yet done
+        // Compute the rankings if not yet done
         if (rounds[uint256(roundIndex)].ranking.length == 0) {
             // Not last round case
             if (uint256(roundIndex) != roundsNumber - 1) {
@@ -241,7 +243,11 @@ contract FederatedML is Ownable, VRFConsumerBase, ChainlinkClient {
         // w.r.t. the ranking give the correct reward
         for (uint256 i = 0; i < topWorkersInRound; i++) {
             if (msg.sender == rounds[uint256(roundIndex)].ranking[i]) {
-                payable(msg.sender).transfer(rewards[i]);
+                if (rewards[i] > address(this).balance) {
+                    payable(msg.sender).transfer(address(this).balance);
+                } else {
+                    payable(msg.sender).transfer(rewards[i]);
+                }
             }
         }
         addressToWorkerInfo[msg.sender].rewardTaken = true;
@@ -742,5 +748,9 @@ contract FederatedML is Ownable, VRFConsumerBase, ChainlinkClient {
     // {
     //     require(index < rounds.length, "Index out of bound!");
     //     return rounds[index].ranking;
+    // }
+
+    // function getBalance() public view returns (uint256) {
+    //     return address(this).balance;
     // }
 }
