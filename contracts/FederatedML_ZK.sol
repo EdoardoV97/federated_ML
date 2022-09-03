@@ -251,7 +251,11 @@ contract FederatedML_ZK is Ownable, VRFConsumerBase, ChainlinkClient {
         // w.r.t. the ranking give the correct reward
         for (uint256 i = 0; i < topWorkersInRound; i++) {
             if (msg.sender == rounds[uint256(roundIndex)].ranking[i]) {
-                payable(msg.sender).transfer(rewards[i]);
+                if (rewards[i] > address(this).balance) {
+                    payable(msg.sender).transfer(address(this).balance);
+                } else {
+                    payable(msg.sender).transfer(rewards[i]);
+                }
             }
         }
         addressToWorkerInfo[msg.sender].rewardTaken = true;
