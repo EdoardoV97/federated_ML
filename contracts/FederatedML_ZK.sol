@@ -149,13 +149,16 @@ contract FederatedML_ZK is Ownable, VRFConsumerBase, ChainlinkClient {
             coefficients[j] = computeRewardCoefficient(j + 1);
             coefficientsSum += coefficients[j];
         }
+
         r1 =
             (bounty * 10**18 * 10**18) /
             (coefficientsSum *
-                roundsNumber *
-                10**18 -
-                ((workersNumber * 10**18 * 10**18) /
-                    (((topWorkersInRound * 10**18) / 2) + 2 * 10**18)));
+                roundsNumber -
+                ((workersNumber *
+                    (workersInRound - 2 * topWorkersInRound + 1) *
+                    10**18) /
+                    (workersInRound - 1) /
+                    (workersInRound - topWorkersInRound + 1)));
 
         upperBound =
             ((((workersInRound - 2 * topWorkersInRound + 1) * 10**18) /
@@ -163,27 +166,26 @@ contract FederatedML_ZK is Ownable, VRFConsumerBase, ChainlinkClient {
             10**18;
 
         lowerBound =
-            (r1 * 10**18) /
-            (((topWorkersInRound * 10**18) / 2) + 2 * 10**18);
+            ((((workersInRound - 2 * topWorkersInRound + 1) * 10**18) /
+                (workersInRound - 1)) * r1) /
+            (workersInRound - topWorkersInRound + 1) /
+            10**18;
 
         require(
             lowerBound <= upperBound,
             "Is not possible to compute a valid fee in the current setting!"
         );
-        r1 = r1 / 10**18;
-        upperBound = upperBound / 10**18;
-        lowerBound = lowerBound / 10**18;
 
-        entranceFee = lowerBound;
+        entranceFee = lowerBound / 10**18;
         for (uint64 j = 0; j < coefficients.length; j++) {
-            rewards.push(coefficients[j] * r1);
+            rewards.push((coefficients[j] * r1) / 10**18 / 10**18);
             totalRoundReward += rewards[j];
         }
         return;
     }
 
     function computeRewardCoefficient(uint256 _j) internal returns (uint256) {
-        return (workersInRound - 2 * _j + 1) / (workersInRound - 1);
+        return ((workersInRound - 2 * _j + 1) * 10**18) / (workersInRound - 1);
     }
 
     function register(string memory _mtrDataset) public payable {
