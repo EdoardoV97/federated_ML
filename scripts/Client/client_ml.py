@@ -1,4 +1,6 @@
 import numpy as np
+import tensorflow_privacy
+import tensorflow as tf
 from tensorflow.keras.datasets import mnist
 from tensorflow.keras.utils import to_categorical
 from tensorflow.keras.models import Sequential
@@ -16,6 +18,11 @@ BEST_K = 1  # This is K'
 
 LOCAL_EPOCHS = 1
 LOCAL_BATCH_SIZE = 64
+
+# DIFFERENTIAL PRIVACY hyperparameters
+NUM_MICRO_BATCHES = 8
+l2_norm_clip = 1.5
+noise_multiplier = 1.0
 
 # CLASSES
 class LocalOutput:
@@ -89,19 +96,27 @@ def define_model():
     model.add(Dense(100, activation="relu", kernel_initializer="he_uniform"))
     model.add(Dense(10, activation="softmax"))
     # compile model
-    opt = SGD(learning_rate=0.01, momentum=0.9)
-    model.compile(optimizer=opt, loss="categorical_crossentropy", metrics=["accuracy"])
+    opt = tensorflow_privacy.DPKerasSGDOptimizer(
+        l2_norm_clip=l2_norm_clip,
+        noise_multiplier=noise_multiplier,
+        num_microbatches=NUM_MICRO_BATCHES,
+        learning_rate=0.01,
+    )
+    loss = tf.keras.losses.CategoricalCrossentropy(
+        from_logits=False, reduction=tf.losses.Reduction.NONE
+    )
+    model.compile(optimizer=opt, loss=loss, metrics=["accuracy"])
     return model
 
 
 def local_update(
     workersToEvaluate: list[WorkerToEvaluate], isLastRound: bool, workerIndex
 ):
-    # 1) EVALUATE PULLED MODELS AND SELECT BEST K' WORKERS
+    # 1) EVALUATE PULLED MODELS AND SELECT BEST_K WORKERS
     # k = 1
     trainX, trainY, testX, testY = load_dataset()
-    trainX = trainX[: 64 + int(workerIndex) * 50, :]
-    trainY = trainY[: 64 + int(workerIndex) * 50, :]
+    trainX = trainX[64 * (int(workerIndex) - 1) : 64 * int(workerIndex), :]
+    trainY = trainY[64 * (int(workerIndex) - 1) : 64 * int(workerIndex), :]
     # prepare pixel data
     trainX, testX = prep_pixels(trainX, testX)
     for w in workersToEvaluate:
