@@ -73,6 +73,8 @@ contract FederatedML_ZK is Ownable, VRFConsumerBase, ChainlinkClient {
     mapping(address => WorkerInfo) public addressToWorkerInfo;
     EnumerableSet.AddressSet workers;
 
+    mapping(string => bool) public mtrToAlreadyUsed;
+
     EnumerableSet.AddressSet private residualWorkers;
 
     // Events
@@ -195,8 +197,13 @@ contract FederatedML_ZK is Ownable, VRFConsumerBase, ChainlinkClient {
             addressToWorkerInfo[msg.sender].fee == false,
             "You are already registered!"
         ); // It requires that entranceFee is not 0
+        require(
+            mtrToAlreadyUsed[_mtrDataset] == false,
+            "It is not possible to use the same dataset of someone else!"
+        );
         addressToWorkerInfo[msg.sender].fee = true;
         addressToWorkerInfo[msg.sender].mtrDataset = _mtrDataset;
+        mtrToAlreadyUsed[_mtrDataset] = true;
         EnumerableSet.add(workers, msg.sender);
         if (EnumerableSet.length(workers) >= workersNumber) {
             initializeRound();
