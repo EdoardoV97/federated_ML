@@ -62,7 +62,10 @@ def send_response():
     already_redone = False
     while not_confirmed:
         transaction = federated_ML.functions.commitWork(
-            localOutput.bestKWorkers, myModelHash
+            localOutput.bestKWorkers,
+            myModelHash,
+            "dummy_mtrUpdatedModel",
+            0xF6FE2AF6E4EC2F4247E9D536E0B79C2B64538D9DA58C7FC9F8417E8ECFDF58C9,  # Dummy already verified fact
         ).buildTransaction(
             {
                 "chainId": chain_id,
@@ -117,7 +120,9 @@ def register():
     federated_ML = w3.eth.contract(contract_address, abi=get_ABI(contract_address))
     fee = federated_ML.functions.entranceFee().call()
     print(f"Registration fee is: {fee}")
-    transaction = federated_ML.functions.register().buildTransaction(
+    transaction = federated_ML.functions.register(
+        "dummy_mtrDataset" + str(worker_index)
+    ).buildTransaction(
         {
             "chainId": chain_id,
             "gasPrice": w3.eth.gas_price,
@@ -290,7 +295,9 @@ def disclose_secret_vote():
     federated_ML = w3.eth.contract(contract_address, abi=get_ABI(contract_address))
 
     transaction = federated_ML.functions.discloseSecretVote(
-        localOutput.bestKWorkers, "ciao"
+        localOutput.bestKWorkers,
+        "ciao",
+        0xF6FE2AF6E4EC2F4247E9D536E0B79C2B64538D9DA58C7FC9F8417E8ECFDF58C9,  # Dummy already verified fact
     ).buildTransaction(
         {
             "chainId": chain_id,
