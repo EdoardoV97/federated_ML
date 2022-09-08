@@ -79,6 +79,7 @@ def send_response():
         tx_receipt = w3.eth.wait_for_transaction_receipt(tx_hash)
         print(tx_receipt)
         print("DONE!")
+        # Since concurrency can made the trx fail during our tests, thus repeat if trx did not go well
         if not already_redone:
             redo = input("REDO? y/n")
             if redo == "n":
