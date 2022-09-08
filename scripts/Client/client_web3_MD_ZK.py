@@ -1,10 +1,23 @@
 import sys
 import requests
-from client_ml import LocalOutput, WorkerToEvaluate, run_learning
 from web3 import Web3
 import json
 import asyncio
 import json
+
+
+class LocalOutput:
+    def __init__(self):
+        self.model = None
+        self.bestKWorkers = list()
+
+
+class WorkerToEvaluate:
+    def __init__(self, weightsFile):
+        self.weightsFile = weightsFile
+        self.loss = None
+        self.accuracy = None
+
 
 workersToEvaluate = list()
 localOutput = LocalOutput()
