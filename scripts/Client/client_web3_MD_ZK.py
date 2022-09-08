@@ -9,8 +9,8 @@ import json
 workersToEvaluate = list()
 localOutput = LocalOutput()
 
-CHOSEN_NETWORK = "kovan"
-CHOSEN_NETWORK_ID = 42
+CHOSEN_NETWORK = "goerli"
+CHOSEN_NETWORK_ID = 5
 # WORKER_INDEX =
 
 with open("scripts/Client/client-config.json", "r") as file:
@@ -25,7 +25,7 @@ with open("scripts/Client/client-config.json", "r") as file:
 def get_contract_address():
     with open("build/deployments/map.json", "r") as file:
         json_file = json.load(file)
-        return json_file[str(CHOSEN_NETWORK_ID)]["FederatedML"][0]
+        return json_file[str(CHOSEN_NETWORK_ID)]["FederatedML_ZK"][0]
 
 
 def get_ABI(contract_address):
@@ -65,7 +65,7 @@ def send_response():
             localOutput.bestKWorkers,
             myModelHash,
             "dummy_mtrUpdatedModel",
-            0xF6FE2AF6E4EC2F4247E9D536E0B79C2B64538D9DA58C7FC9F8417E8ECFDF58C9,  # Dummy already verified fact
+            "0xF6FE2AF6E4EC2F4247E9D536E0B79C2B64538D9DA58C7FC9F8417E8ECFDF58C9",  # Dummy already verified fact
         ).buildTransaction(
             {
                 "chainId": chain_id,
@@ -74,7 +74,6 @@ def send_response():
                 "nonce": w3.eth.getTransactionCount(my_address),
             }
         )
-
         signed_transaction = w3.eth.account.sign_transaction(
             transaction, private_key=private_key
         )
@@ -198,8 +197,6 @@ def round(loop):
 
     # Do local training
     global localOutput
-    localOutput = run_learning(workersToEvaluate, False, worker_index)
-    # If merge version MD+ZK uncomment and comment the run_learning
     input(
         "Press any key after adding the weights file in the models' folder. The name must be the modelOfWorker"
         + worker_index
@@ -209,7 +206,7 @@ def round(loop):
         "scripts/Client/models/modelOfWorker" + str(worker_index) + ".txt"
     )
     localOutput.bestKWorkers = [
-        int(vote) for vote in input("Copy and paste the votes array").split(",")
+        int(vote) for vote in input("Copy and paste the votes array\n").split(",")
     ]
 
     # Send response to the SC
@@ -226,10 +223,9 @@ def last_round(loop):
 
     # Do local training
     global localOutput
-    # localOutput = run_learning(workersToEvaluate, True, worker_index)
-
-    # If merge version MD+ZK uncomment and comment the run_learning
-    localOutput.bestKWorkers = input("Copy and paste the votes array").split(",")
+    localOutput.bestKWorkers = [
+        int(vote) for vote in input("Copy and paste the votes array\n").split(",")
+    ]
 
     commit_secret_vote()
     listen_to_disclosure_event(loop)
@@ -297,7 +293,7 @@ def disclose_secret_vote():
     transaction = federated_ML.functions.discloseSecretVote(
         localOutput.bestKWorkers,
         "ciao",
-        0xF6FE2AF6E4EC2F4247E9D536E0B79C2B64538D9DA58C7FC9F8417E8ECFDF58C9,  # Dummy already verified fact
+        "0xF6FE2AF6E4EC2F4247E9D536E0B79C2B64538D9DA58C7FC9F8417E8ECFDF58C9",  # Dummy already verified fact
     ).buildTransaction(
         {
             "chainId": chain_id,
