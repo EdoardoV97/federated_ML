@@ -1,5 +1,5 @@
-from brownie import accounts, config, FederatedML, FederatedML_ZK, network
-from scripts.helpful_scripts import fund_with_link, get_account, get_contract
+from brownie import config, FederatedML, FederatedML_ZK, network
+from scripts.helpful_scripts import get_account, get_contract
 
 
 # NUM_OF_WORKERS = 6

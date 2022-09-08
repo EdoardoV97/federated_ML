@@ -4,8 +4,6 @@ from brownie import config, network
 from scripts.helpful_scripts import fund_with_link, get_account
 from scripts.deploy import deploy_FederatedML_ZK
 
-FUND_QUANTITY: 10
-
 
 def main():
     federatedML_contract = deploy_FederatedML_ZK()
