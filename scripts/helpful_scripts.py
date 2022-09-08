@@ -4,7 +4,6 @@ from brownie import (
     config,
     Contract,
     FederatedML,
-    FederatedML_ZK,
     interface,
     VRFCoordinatorMock,
     LinkToken,
@@ -21,7 +20,6 @@ LOCAL_BLOCKCHAIN_ENVIRONMENTS = NON_FORKED_LOCAL_BLOCKCHAIN_ENVIRONMENTS + [
 
 contract_to_mock = {
     "FederatedML": FederatedML,
-    "FederatedML_ZK": FederatedML_ZK,
     "vrf_coordinator": VRFCoordinatorMock,
     "link_token": LinkToken,
 }

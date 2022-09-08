@@ -1,7 +1,5 @@
 # This script is needed to deploy the SC to testnets or ganacheUI
 
-
-import time
 from brownie import config, network
 from scripts.helpful_scripts import fund_with_link, get_account, get_contract
 from scripts.deploy import deploy_FederatedML
