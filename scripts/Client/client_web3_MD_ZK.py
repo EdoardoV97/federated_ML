@@ -268,7 +268,9 @@ def commit_secret_vote():
     )
     tx_hash = w3.eth.send_raw_transaction(signed_transaction.rawTransaction)
     print("Committing secret vote...")
-    tx_receipt = w3.eth.wait_for_transaction_receipt(tx_hash)
+    tx_receipt = w3.eth.wait_for_transaction_receipt(
+        tx_hash
+    )  # May be useful to comment to avoid starting listening lately w.r.t. the disclosure event emit
     print("DONE!")
 
 
