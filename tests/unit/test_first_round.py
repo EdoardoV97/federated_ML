@@ -1,4 +1,3 @@
-from tabnanny import check
 import unittest
 from brownie import config, network
 from scripts.helpful_scripts import fund_with_link, get_account, get_contract
@@ -25,7 +24,7 @@ def test_get_initial_model():
     worker_fee = federatedML_contract.entranceFee()
     print(f"Entrance fee is: {worker_fee} Wei")
     # Register the workers
-    for w in range(1, 7):
+    for w in range(1, 31):
         tx = federatedML_contract.register(
             {"from": get_account(w), "value": worker_fee}
         )
@@ -36,7 +35,7 @@ def test_get_initial_model():
     tx.wait(1)
     selected_workers = federatedML_contract.getWorkersInRound(0)
     selected_addresses_index = []
-    for w in range(1, 7):
+    for w in range(1, 31):
         if get_account(w) == selected_workers[0]:
             selected_addresses_index.append(w)
             assert (
@@ -62,9 +61,9 @@ def test_get_initial_model():
     )
 
     res = federatedML_contract.getPreviousModels()
-    assert "test_hash" == res[0]
+    assert "QmeGCXqw21Y7g1w53GtzAWz8bBzHN7ES1PMS54RH44X56i" == res[0]
     res = federatedML_contract.getPreviousModels()
-    assert "test_hash" == res[0]
+    assert "QmeGCXqw21Y7g1w53GtzAWz8bBzHN7ES1PMS54RH44X56i" == res[0]
 
 
 @unittest.skip("Passed")
@@ -87,7 +86,7 @@ def test_commit_updates():
     worker_fee = federatedML_contract.entranceFee()
     print(f"Entrance fee is: {worker_fee} Wei")
     # Register the workers
-    for w in range(1, 7):
+    for w in range(1, 31):
         tx = federatedML_contract.register(
             {"from": get_account(w), "value": worker_fee}
         )
@@ -98,34 +97,22 @@ def test_commit_updates():
     tx.wait(1)
     selected_workers = federatedML_contract.getWorkersInRound(0)
     selected_addresses_index = []
-    for w in range(1, 7):
-        if get_account(w) == selected_workers[0]:
-            selected_addresses_index.append(w)
-        if get_account(w) == selected_workers[1]:
-            selected_addresses_index.append(w)
+    for w in range(1, 31):
+        for i in range(0, 10):
+            if get_account(w) == selected_workers[i]:
+                selected_addresses_index.append(w)
 
-    tx = federatedML_contract.commitWork(
-        [], "model_1", {"from": get_account(selected_addresses_index[0])}
-    )
-    tx.wait(1)
-    print(f"Worker{selected_addresses_index[0]} committed the model update")
-    tx = federatedML_contract.commitWork(
-        [], "model_2", {"from": get_account(selected_addresses_index[1])}
-    )
-    tx.wait(1)
-    print(f"Worker{selected_addresses_index[1]} committed the model update")
+    for w in range(0, 10):
+        tx = federatedML_contract.commitWork(
+            [], "model_" + str(w), {"from": get_account(selected_addresses_index[w])}
+        )
+        tx.wait(1)
+        print(f"Worker{selected_addresses_index[w]} committed the model update")
 
     # Check model hashes saved and new round started
-    assert (
-        federatedML_contract.addressToWorkerInfo(
-            get_account(selected_addresses_index[0])
-        )[5]
-        == "model_1"
-    )
-    assert (
-        federatedML_contract.addressToWorkerInfo(
-            get_account(selected_addresses_index[1])
-        )[5]
-        == "model_2"
-    )
+    for w in range(0, 10):
+        assert federatedML_contract.addressToWorkerInfo(
+            get_account(selected_addresses_index[w])
+        )[5] == "model_" + str(w)
+
     assert federatedML_contract.state() == 4

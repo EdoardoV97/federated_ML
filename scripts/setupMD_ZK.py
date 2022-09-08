@@ -1,14 +1,12 @@
 # This script is needed to deploy the SC to testnets or ganacheUI
 
-
-import time
 from brownie import config, network
-from scripts.helpful_scripts import fund_with_link, get_account, get_contract
-from scripts.deploy import deploy_FederatedML
+from scripts.helpful_scripts import fund_with_link, get_account
+from scripts.deploy import deploy_FederatedML_ZK
 
 
 def main():
-    federatedML_contract = deploy_FederatedML()
+    federatedML_contract = deploy_FederatedML_ZK()
     account = get_account()
     oracle_fee = config["networks"][network.show_active()]["fee"]
 

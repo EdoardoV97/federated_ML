@@ -4,7 +4,7 @@ from brownie import config, network
 from scripts.helpful_scripts import fund_with_link, get_account, get_contract
 from scripts.deploy import deploy_FederatedML
 
-
+# Remeber to run manually the ganache-cli with enough accounts
 @unittest.skip("Passed")
 def test_register():
     federatedML_contract = deploy_FederatedML()
@@ -33,8 +33,11 @@ def test_register():
     worker_fee = federatedML_contract.entranceFee()
     print(f"Entrance fee is: {worker_fee} Wei")
 
+    # Check valid for 20 workers, 2 rounds, best_k=5
+    assert worker_fee == 2380952380952380
+
     # Register the workers
-    for w in range(1, 7):
+    for w in range(1, 31):
         assert federatedML_contract.state() == 1  # Registering state check
         tx = federatedML_contract.register(
             {"from": get_account(w), "value": worker_fee}
@@ -45,7 +48,7 @@ def test_register():
     assert federatedML_contract.state() == 4  # Round preparation state check
 
     # Check in the map if all registered workers are present
-    for w in range(1, 7):
+    for w in range(1, 31):
         info = federatedML_contract.addressToWorkerInfo(get_account(w).address)
         assert info[0] == True
 
@@ -57,12 +60,11 @@ def test_register():
     print(workers)
 
     check_addresses = 0
-    for w in range(1, 7):
-        if get_account(w) == workers[0]:
-            check_addresses += 1
-        if get_account(w) == workers[1]:
-            check_addresses += 1
-    assert check_addresses == 2
+    for w in range(1, 31):
+        for i in range(0, 10):
+            if get_account(w) == workers[i]:
+                check_addresses += 1
+    assert check_addresses == 10
 
 
 @unittest.skip("Passed")

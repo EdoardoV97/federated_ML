@@ -6,8 +6,9 @@ import "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
 import "@chainlink/contracts/src/v0.8/VRFConsumerBase.sol";
 import "@chainlink/contracts/src/v0.8/ChainlinkClient.sol";
 import "@chainlink/contracts/src/v0.8/interfaces/LinkTokenInterface.sol";
+import "interfaces/VerifierInterface.sol";
 
-contract FederatedML is Ownable, VRFConsumerBase, ChainlinkClient {
+contract FederatedML_ZK is Ownable, VRFConsumerBase, ChainlinkClient {
     //
     using EnumerableSet for EnumerableSet.AddressSet;
     using Chainlink for Chainlink.Request;
@@ -30,6 +31,9 @@ contract FederatedML is Ownable, VRFConsumerBase, ChainlinkClient {
         bytes32 secretVote;
         bool alreadySelected;
         string modelHash;
+        string mtrModel;
+        bytes32 factId;
+        string mtrDataset;
     }
     struct Round {
         EnumerableSet.AddressSet workers;
@@ -60,11 +64,16 @@ contract FederatedML is Ownable, VRFConsumerBase, ChainlinkClient {
     address private oracleApiAddress;
     bytes32 private jobId;
     bytes32 lastTimerRequestId;
+    // Address of the verifier of Starknet on Goerli testnet
+    address private verifierAddress =
+        0xAB43bA48c9edF4C2C4bB01237348D1D7B28ef168;
 
     mapping(address => uint256) public addressToAmountFunded;
     EnumerableSet.AddressSet funders;
     mapping(address => WorkerInfo) public addressToWorkerInfo;
     EnumerableSet.AddressSet workers;
+
+    mapping(string => bool) public mtrToAlreadyUsed;
 
     EnumerableSet.AddressSet private residualWorkers;
 
@@ -95,7 +104,7 @@ contract FederatedML is Ownable, VRFConsumerBase, ChainlinkClient {
         // );
         // workersNumber = _workersNumber;
         // roundsNumber = _roundsNumber;
-        workersNumber = 30; // 30 in local unit test
+        workersNumber = 6;
         roundsNumber = 3;
         fee = _fee;
         keyhash = _keyhash;
@@ -108,7 +117,7 @@ contract FederatedML is Ownable, VRFConsumerBase, ChainlinkClient {
         initialModelHash = _initialModelHash;
         linkTokenAddress = _linkTokenAddress;
         workersInRound = workersNumber / roundsNumber;
-        topWorkersInRound = 5; // 5 in local unit test
+        topWorkersInRound = 1;
     }
 
     function fund() public payable {
@@ -181,14 +190,20 @@ contract FederatedML is Ownable, VRFConsumerBase, ChainlinkClient {
         return ((workersInRound - 2 * _j + 1) * 10**18) / (workersInRound - 1);
     }
 
-    function register() public payable {
+    function register(string memory _mtrDataset) public payable {
         require(state == STATE.REGISTERING, "Is not possible to register now!");
         require(msg.value == entranceFee, "Minimum fee not satisfied!");
         require(
             addressToWorkerInfo[msg.sender].fee == false,
             "You are already registered!"
         ); // It requires that entranceFee is not 0
+        require(
+            mtrToAlreadyUsed[_mtrDataset] == false,
+            "It is not possible to use the same dataset of someone else!"
+        );
         addressToWorkerInfo[msg.sender].fee = true;
+        addressToWorkerInfo[msg.sender].mtrDataset = _mtrDataset;
+        mtrToAlreadyUsed[_mtrDataset] = true;
         EnumerableSet.add(workers, msg.sender);
         if (EnumerableSet.length(workers) >= workersNumber) {
             initializeRound();
@@ -220,7 +235,7 @@ contract FederatedML is Ownable, VRFConsumerBase, ChainlinkClient {
             addressToWorkerInfo[msg.sender].rewardTaken == false,
             "The reward was already withdrawed!"
         );
-        // Compute the rankings if not yet done
+        // Compute the rankings is not yet done
         if (rounds[uint256(roundIndex)].ranking.length == 0) {
             // Not last round case
             if (uint256(roundIndex) != roundsNumber - 1) {
@@ -539,9 +554,12 @@ contract FederatedML is Ownable, VRFConsumerBase, ChainlinkClient {
         return previousModelHashes;
     }
 
-    function commitWork(uint16[] memory _votes, string memory _updatedModel)
-        external
-    {
+    function commitWork(
+        uint16[] memory _votes,
+        string memory _updatedModel,
+        string memory _mtrUpdatedModel,
+        bytes32 _factId
+    ) external {
         require(
             state == STATE.ROUND_IN_PROGRESS,
             "You cannot commit your work in this phase!"
@@ -557,6 +575,11 @@ contract FederatedML is Ownable, VRFConsumerBase, ChainlinkClient {
         require(
             addressToWorkerInfo[msg.sender].votesGranted.length == 0,
             "You have alredy submitted your work!"
+        );
+        bool isVerified = VerifierInterface(verifierAddress).isValid(_factId);
+        require(
+            isVerified,
+            "The proof associated to the factId has not been verified by the Verifier!"
         );
         if (rounds.length != 1) {
             // Check votes validity
@@ -576,6 +599,8 @@ contract FederatedML is Ownable, VRFConsumerBase, ChainlinkClient {
         }
         // Save the updated model
         addressToWorkerInfo[msg.sender].modelHash = _updatedModel;
+        addressToWorkerInfo[msg.sender].mtrModel = _mtrUpdatedModel;
+        addressToWorkerInfo[msg.sender].factId = _factId;
         // Increment the commitment counter of the current round
         rounds[rounds.length - 1].roundCommitment++;
         // If it is the last commit of the round end the round
@@ -652,9 +677,11 @@ contract FederatedML is Ownable, VRFConsumerBase, ChainlinkClient {
         }
     }
 
-    function discloseSecretVote(uint16[] memory _votes, string memory _salt)
-        external
-    {
+    function discloseSecretVote(
+        uint16[] memory _votes,
+        string memory _salt,
+        bytes32 _factId
+    ) external {
         // Check disclosure phase
         require(
             state == STATE.LAST_ROUND_DISCLOSING,
@@ -671,6 +698,11 @@ contract FederatedML is Ownable, VRFConsumerBase, ChainlinkClient {
         require(
             addressToWorkerInfo[msg.sender].secretVote != 0,
             "You have not submitted your work in time!"
+        );
+        bool isVerified = VerifierInterface(verifierAddress).isValid(_factId);
+        require(
+            isVerified,
+            "The proof associated to the factId has not been verified by the Verifier!"
         );
         // Check the validity of the vote
         require(
@@ -748,9 +780,5 @@ contract FederatedML is Ownable, VRFConsumerBase, ChainlinkClient {
     // {
     //     require(index < rounds.length, "Index out of bound!");
     //     return rounds[index].ranking;
-    // }
-
-    // function getBalance() public view returns (uint256) {
-    //     return address(this).balance;
     // }
 }
