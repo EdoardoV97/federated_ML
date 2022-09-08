@@ -46,7 +46,7 @@ def deploy_FederatedML_ZK():
 
     # Deploy
     federatedML_ZK_contract = FederatedML_ZK.deploy(
-        INITIAL_MODEL_HASH,
+        "QmNssyBLsb3nvVf8JxaG1rdbQot8agUwoTUaF6u58KQr4A",
         vrf_coordinator,
         link_token,
         oracle_fee,
